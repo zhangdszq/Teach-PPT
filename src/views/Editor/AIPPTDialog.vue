@@ -186,56 +186,9 @@ const createOutline = async () => {
   const decoder = new TextDecoder('utf-8')
   
   outline.value = `
-
-## 导入与热身 (Warm-up & Introduction)\n
-### 封面页。\n
-### 课程情景导入，营造学习氛围。\n
-### 热身活动，通过字母歌视频调动学习兴趣。\n
 ## 字母 Ff 的学习 (Learning Ff)\n
-### 引入字母 Ff 的大小写和发音。\n
-### 学习与 Ff 相关的核心单词。\n
-### 练习环节，引入新单词。\n
-### 书写练习，描摹字母 Ff。\n
-## 字母 Gg 的学习 (Learning Gg)\n
-### 引入字母 Gg 的大小写和发音。\n
-### 学习与 Gg 相关的核心单词。\n
-### 练习环节，引入新单词。\n
-### 书写练习，描摹字母 Gg。\n
-## Ff & Gg 巩固练习 (Practice)\n
-### 分类练习，根据首字母归类单词。\n
-### 听音拖拽填空练习，完成综合应用句子。\n
-## 拼读练习 (Blending)\n
-### 引入拼读概念。\n
-### 练习拼读相关单词。\n
-## 字母 Hh 的学习 (Learning Hh)\n
-### 引入字母 Hh 的大小写和发音。\n
-### 学习与 Hh 相关的核心单词。\n
-### 练习环节，引入新单词。\n
-### 书写练习，描摹字母 Hh。\n
-## 字母 Ii 的学习 (Learning Ii)\n
-### 引入字母 Ii 的大小写和发音。\n
-### 学习与 Ii 相关的核心单词。\n
-### 练习环节，引入新单词。\n
-### 书写练习，描摹字母 Ii。\n
-## 字母 Jj 的学习 (Learning Jj)\n
-### 引入字母 Jj 的大小写和发音.\n
-### 学习与 Jj 相关的核心单词。\n
-### 练习环节，引入新单词。\n
-### 书写练习，描摹字母 Jj。\n
-## Hh, Ii & Jj 巩固练习 (Practice)\n
-### 听音选择练习，辨别首字母。\n
-### 听音匹配练习，将发音与对应单词联系起来。\n
-## 拼读练习 (Blending)\n
-### 再次进入拼读环节。\n
-### 练习拼读相关单词。\n
-## 句子拓展与应用 (Sentence Application)\n
-### 单词填空练习，练习 F, G, H, I, J 在单词中的应用。\n
-### 团队游戏或句子练习，围绕句子进行多轮互动，包括选词填空和跟读。\n
-## 拓展与复习 (Chant & Review)\n
-### 引入童谣/说唱环节。\n
-### 展示本课所学的五个字母和对应单词的 Chant。\n
-### 听音匹配练习，将发音与单词及其首字母进行匹配。\n
-### 跟读和完整跟唱 Chant，作为课程的总结和复习。\n`
+## 引入字母 Ff 的大小写和发音。\n
+## 学习与 Ff 相关的核心单词。\n`
   outlineCreating.value = false
   return
   // const readStream = () => {
@@ -295,15 +248,10 @@ const createPPT = async () => {
       try {
         let text = chunk.replace('```json', '').replace('```', '').trim()
         if (text) {
-          text = "{\"type\":\"contents\",\"data\":{\"items\":[\"年会背景与意义\",\"年会主题与目标\",\"年会流程设计\",\"年会物料准备\",\"年会预算与赞助\",\"年会执行与评估\"]}}"
+          text = "{\"type\":\"content\",\"data\":{\"title\":\"F 相关单词\",\"items\":[{\"title\":\"Factory\",\"text\":\"Factory\"},{\"title\":\"fish\",\"text\":\"小鱼在水中游，Ff带来惊喜。\"},{\"title\":\"flower\",\"text\":\"花朵绽放美丽，Ff的温柔象征。\"}]}}"
           console.log(text);
-          let slide: AIPPTSlide = JSON.parse(chunk)
+          let slide: AIPPTSlide = JSON.parse(text)
           AIPPT(templateSlides, [slide])
-
-          text = "{\"type\":\"end\"}"
-          slide: AIPPTSlide = JSON.parse(chunk)
-          AIPPT(templateSlides, [slide])
-
           loading.value = false
           mainStore.setAIPPTDialogState(false)
           slideStore.setTheme(templateTheme)
