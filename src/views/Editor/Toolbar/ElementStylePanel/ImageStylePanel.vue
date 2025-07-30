@@ -60,6 +60,7 @@
     <ElementShadow />
     <Divider />
     
+    <Button class="full-width-btn" @click="openAIImageDialog()"><IconMagic class="btn-icon" /> AI替换图片</Button>
     <FileInput @change="files => replaceImage(files)">
       <Button class="full-width-btn"><IconTransform class="btn-icon" /> 替换图片</Button>
     </FileInput>
@@ -76,6 +77,7 @@ import type { PPTImageElement, SlideBackground } from '@/types/slides'
 import { CLIPPATHS } from '@/configs/imageClip'
 import { getImageDataURL, getImageSize } from '@/utils/image'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
+import emitter, { EmitterEvents } from '@/utils/emitter'
 
 import ElementOutline from '../common/ElementOutline.vue'
 import ElementShadow from '../common/ElementShadow.vue'
@@ -133,6 +135,11 @@ const handleImageElement = handleElement as Ref<PPTImageElement>
 const clipPanelVisible = ref(false)
 
 const { addHistorySnapshot } = useHistorySnapshot()
+
+// 打开AI图片生成对话框
+const openAIImageDialog = () => {
+  emitter.emit(EmitterEvents.OPEN_AI_IMAGE_DIALOG)
+}
 
 // 打开自由裁剪
 const clipImage = () => {

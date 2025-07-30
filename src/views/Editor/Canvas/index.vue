@@ -113,6 +113,7 @@ import type { AlignmentLineProps, CreateCustomShapeData } from '@/types/edit'
 import { injectKeySlideScale } from '@/types/injectKey'
 import { removeAllRanges } from '@/utils/selection'
 import { KEYS } from '@/configs/hotkey'
+import emitter, { EmitterEvents } from '@/utils/emitter'
 
 import useViewportSize from './hooks/useViewportSize'
 import useMouseSelection from './hooks/useMouseSelection'
@@ -217,6 +218,15 @@ onMounted(() => {
   if (activeElementIdList.value.length) {
     nextTick(() => mainStore.setActiveElementIdList([]))
   }
+  
+  // 监听AI图片对话框打开事件
+  emitter.on(EmitterEvents.OPEN_AI_IMAGE_DIALOG, openAIImageDialog)
+})
+
+onUnmounted(() => {
+  // 清理事件监听器
+  emitter.off(EmitterEvents.OPEN_AI_IMAGE_DIALOG, openAIImageDialog)
+  if (textFormatPainter.value) mainStore.setTextFormatPainter(null)
 })
 
 // 点击画布的空白区域：清空焦点元素、设置画布焦点、清除文字选区、清空格式刷状态
@@ -248,10 +258,6 @@ const handleDblClick = (e: MouseEvent) => {
   })
 }
 
-// 画布注销时清空格式刷状态
-onUnmounted(() => {
-  if (textFormatPainter.value) mainStore.setTextFormatPainter(null)
-})
 
 // 移除画布编辑区域焦点
 const removeEditorAreaFocus = () => {

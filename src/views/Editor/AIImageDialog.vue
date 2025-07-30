@@ -84,10 +84,11 @@ const modelOptions = [
 const handleGenerate = async () => {
   if (!prompt.value.trim()) return
   
-  await generateAIImage(prompt.value, selectedModel.value)
+  // 调用图片生成函数，获取成功状态
+  const success = await generateAIImage(prompt.value, selectedModel.value)
   
-  // 生成成功后关闭对话框
-  if (!isGenerating.value) {
+  // 只有在生成成功时才关闭对话框
+  if (success) {
     emit('close')
   }
 }

@@ -5,6 +5,7 @@ export const enum EmitterEvents {
   SYNC_RICH_TEXT_ATTRS_TO_STORE = 'SYNC_RICH_TEXT_ATTRS_TO_STORE',
   OPEN_CHART_DATA_EDITOR = 'OPEN_CHART_DATA_EDITOR',
   OPEN_LATEX_EDITOR = 'OPEN_LATEX_EDITOR',
+  OPEN_AI_IMAGE_DIALOG = 'OPEN_AI_IMAGE_DIALOG',
 }
 
 export interface RichTextAction {
@@ -22,7 +23,8 @@ type Events = {
   [EmitterEvents.SYNC_RICH_TEXT_ATTRS_TO_STORE]: void
   [EmitterEvents.OPEN_CHART_DATA_EDITOR]: void
   [EmitterEvents.OPEN_LATEX_EDITOR]: void
-} 
+  [EmitterEvents.OPEN_AI_IMAGE_DIALOG]: void
+}
 
 const emitter: Emitter<Events> = mitt<Events>()
 

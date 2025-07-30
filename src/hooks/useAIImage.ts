@@ -17,22 +17,22 @@ export default () => {
   const generateAIImage = async (prompt: string, model: string = 'jimeng') => {
     if (!handleElementId.value) {
       message.error('请先选择一个图片元素')
-      return
+      return false
     }
 
     const element = slidesStore.currentSlide.elements.find(el => el.id === handleElementId.value)
     if (!element || element.type !== 'image') {
       message.error('请选择一个图片元素')
-      return
+      return false
     }
 
     if (!prompt.trim()) {
       message.error('请输入图片描述')
-      return
+      return false
     }
 
     isGenerating.value = true
-    message.success('正在生成图片，请稍候...', { duration: 0 })
+    const loadingMessage = message.success('正在生成图片，请稍候...', { duration: 0 })
 
     try {
       const response = await API.AI_Image({ prompt, model })
@@ -68,7 +68,9 @@ export default () => {
         })
         
         addHistorySnapshot()
+        loadingMessage.close() // 关闭加载消息
         message.success('图片生成成功！')
+        return true // 返回成功状态
       }
       else {
         throw new Error('未获取到图片URL')
@@ -76,11 +78,12 @@ export default () => {
     }
     catch (error) {
       console.error('AI图片生成失败:', error)
+      loadingMessage.close() // 关闭加载消息
       message.error('图片生成失败，请稍后重试')
+      return false // 返回失败状态
     }
     finally {
       isGenerating.value = false
-      message.close()
     }
   }
 
