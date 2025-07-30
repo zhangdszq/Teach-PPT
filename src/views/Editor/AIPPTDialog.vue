@@ -85,28 +85,19 @@
          <OutlineEditor v-model:value="outline" />
        </div>
       <div class="btns" v-if="!outlineCreating">
-        <Button class="btn" type="primary" @click="step = 'template'">选择模板</Button>
+        <Button class="btn" type="primary" @click="openTemplateSelect">选择模板</Button>
         <Button class="btn" @click="outline = ''; step = 'setup'">返回重新生成</Button>
-      </div>
-    </div>
-    <div class="select-template" v-if="step === 'template'">
-      <div class="templates">
-        <div class="template" 
-          :class="{ 'selected': selectedTemplate === template.id }" 
-          v-for="template in templates" 
-          :key="template.id" 
-          @click="selectedTemplate = template.id"
-        >
-          <img :src="template.cover" :alt="template.name">
-        </div>
-      </div>
-      <div class="btns">
-        <Button class="btn" type="primary" @click="createPPT()">生成</Button>
-        <Button class="btn" @click="step = 'outline'">返回大纲</Button>
       </div>
     </div>
 
     <FullscreenSpin :loading="loading" tip="AI生成中，请耐心等待 ..." />
+    
+    <!-- 模板选择对话框 -->
+    <TemplateSelectDialog 
+      :visible="templateSelectVisible"
+      @close="closeTemplateSelect"
+      @select="handleTemplateSelect"
+    />
   </div>
 </template>
 
@@ -124,6 +115,7 @@ import Button from '@/components/Button.vue'
 import Select from '@/components/Select.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
 import OutlineEditor from '@/components/OutlineEditor.vue'
+import TemplateSelectDialog from './TemplateSelectDialog.vue'
 
 const mainStore = useMainStore()
 const slideStore = useSlidesStore()
@@ -142,6 +134,7 @@ const outlineRef = ref<HTMLElement>()
 const inputRef = ref<InstanceType<typeof Input>>()
 const step = ref<'setup' | 'outline' | 'template'>('setup')
 const model = ref('GLM-4-Flash')
+const templateSelectVisible = ref(false)
 
 const recommends = ref([
   '公司年会策划方案',
@@ -165,6 +158,21 @@ onMounted(() => {
 const setKeyword = (value: string) => {
   keyword.value = value
   inputRef.value!.focus()
+}
+
+const openTemplateSelect = () => {
+  templateSelectVisible.value = true
+}
+
+const closeTemplateSelect = () => {
+  templateSelectVisible.value = false
+}
+
+const handleTemplateSelect = (template: any) => {
+  selectedTemplate.value = template.id
+  templateSelectVisible.value = false
+  // 直接开始生成PPT
+  createPPT()
 }
 
 const createOutline = async () => {
@@ -307,43 +315,6 @@ const createPPT = async () => {
     margin-bottom: 15px;
     background-color: #f1f1f1;
     overflow: auto;
-  }
-  .btns {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    .btn {
-      width: 120px;
-      margin: 0 5px;
-    }
-  }
-}
-.select-template {
-  .templates {
-    display: flex;
-    margin-bottom: 10px;
-    @include flex-grid-layout();
-  
-    .template {
-      border: 2px solid $borderColor;
-      border-radius: $borderRadius;
-      width: 324px;
-      height: 184px;
-      margin-bottom: 12px;
-
-      &:not(:nth-child(2n)) {
-        margin-right: 12px;
-      }
-
-      &.selected {
-        border-color: $themeColor;
-      }
-  
-      img {
-        width: 100%;
-      }
-    }
   }
   .btns {
     display: flex;

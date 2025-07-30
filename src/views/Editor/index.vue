@@ -39,6 +39,11 @@
   >
     <AIPPTDialog />
   </Modal>
+
+  <CourseImportDialog
+    :visible="showCourseImportDialog"
+    @close="closeCourseImportDialog"
+  />
 </template>
 
 <script lang="ts" setup>
@@ -60,12 +65,14 @@ import SearchPanel from './SearchPanel.vue'
 import NotesPanel from './NotesPanel.vue'
 import MarkupPanel from './MarkupPanel.vue'
 import AIPPTDialog from './AIPPTDialog.vue'
+import CourseImportDialog from './CourseImportDialog.vue'
 import Modal from '@/components/Modal.vue'
 
 const mainStore = useMainStore()
-const { dialogForExport, showSelectPanel, showSearchPanel, showNotesPanel, showMarkupPanel, showAIPPTDialog } = storeToRefs(mainStore)
+const { dialogForExport, showSelectPanel, showSearchPanel, showNotesPanel, showMarkupPanel, showAIPPTDialog, showCourseImportDialog } = storeToRefs(mainStore)
 const closeExportDialog = () => mainStore.setDialogForExport('')
 const closeAIPPTDialog = () => mainStore.setAIPPTDialogState(false)
+const closeCourseImportDialog = () => mainStore.setCourseImportDialogState(false)
 
 const remarkHeight = ref(40)
 

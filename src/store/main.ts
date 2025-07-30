@@ -37,6 +37,7 @@ export interface MainState {
   showNotesPanel: boolean
   showMarkupPanel: boolean
   showAIPPTDialog: boolean
+  showCourseImportDialog: boolean
 }
 
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
@@ -73,6 +74,7 @@ export const useMainStore = defineStore('main', {
     showNotesPanel: false, // 打开批注面板
     showMarkupPanel: false, // 打开类型标注面板
     showAIPPTDialog: false, // 打开AIPPT创建窗口
+    showCourseImportDialog: false, // 打开课程导入对话框
   }),
 
   getters: {
@@ -205,6 +207,10 @@ export const useMainStore = defineStore('main', {
 
     setAIPPTDialogState(show: boolean) {
       this.showAIPPTDialog = show
+    },
+
+    setCourseImportDialogState(show: boolean) {
+      this.showCourseImportDialog = show
     },
   },
 })

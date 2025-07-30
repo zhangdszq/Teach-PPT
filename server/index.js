@@ -326,6 +326,168 @@ app.get('/api/models', (req, res) => {
   });
 });
 
+// AIPPT大纲生成接口
+app.post('/tools/aippt_outline', (req, res) => {
+  try {
+    const { content, language, model } = req.body;
+    
+    console.log(`📝 生成AIPPT大纲: ${content}, 语言: ${language}, 模型: ${model}`);
+    
+    // 模拟流式响应
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    
+    // 模拟大纲内容
+    const mockOutline = `
+## ${content}
+
+### 1. 引言
+- 背景介绍
+- 重要性说明
+- 目标概述
+
+### 2. 主要内容
+- 核心概念解释
+- 关键要点分析
+- 实际应用案例
+
+### 3. 深入分析
+- 详细论述
+- 数据支撑
+- 对比分析
+
+### 4. 总结
+- 要点回顾
+- 结论陈述
+- 未来展望
+`;
+
+    // 模拟流式输出
+    const chunks = mockOutline.split('\n');
+    let index = 0;
+    
+    const sendChunk = () => {
+      if (index < chunks.length) {
+        res.write(chunks[index] + '\n');
+        index++;
+        setTimeout(sendChunk, 100); // 模拟延迟
+      } else {
+        res.end();
+      }
+    };
+    
+    sendChunk();
+    
+  } catch (error) {
+    console.error('生成大纲错误:', error);
+    res.status(500).json({
+      status: 'error',
+      error_message: '大纲生成失败，请稍后重试'
+    });
+  }
+});
+
+// AIPPT生成接口
+app.post('/tools/aippt', (req, res) => {
+  try {
+    const { content, language, style, model } = req.body;
+    
+    console.log(`🎨 生成AIPPT: 语言=${language}, 风格=${style}, 模型=${model}`);
+    
+    // 模拟流式响应
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    
+    // 模拟PPT内容
+    const mockPPTContent = {
+      type: "content",
+      data: {
+        title: "主要内容",
+        items: [
+          {
+            title: "核心概念",
+            text: "详细解释核心概念的定义和重要性"
+          },
+          {
+            title: "关键要点",
+            text: "分析关键要点及其相互关系"
+          },
+          {
+            title: "实际应用",
+            text: "展示在实际场景中的应用案例"
+          }
+        ]
+      }
+    };
+    
+    // 发送JSON数据
+    setTimeout(() => {
+      res.write(JSON.stringify(mockPPTContent));
+      res.end();
+    }, 1000);
+    
+  } catch (error) {
+    console.error('生成PPT错误:', error);
+    res.status(500).json({
+      status: 'error',
+      error_message: 'PPT生成失败，请稍后重试'
+    });
+  }
+});
+
+// AI写作接口
+app.post('/tools/ai_writing', (req, res) => {
+  try {
+    const { content, command } = req.body;
+    
+    console.log(`✍️ AI写作: 命令=${command}, 内容长度=${content.length}`);
+    
+    // 模拟流式响应
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    
+    let result = '';
+    
+    // 根据命令生成不同的结果
+    switch (command) {
+      case '美化改写':
+        result = '经过精心美化改写的内容，语言更加优美流畅，表达更加准确生动。';
+        break;
+      case '扩写丰富':
+        result = '在原有内容基础上进行扩写，增加了更多细节描述、背景信息和深入分析，使内容更加丰富完整。';
+        break;
+      case '精简提炼':
+        result = '提炼核心要点，去除冗余信息，保留最重要的内容。';
+        break;
+      default:
+        result = '根据您的要求对内容进行了相应的处理和优化。';
+    }
+    
+    // 模拟流式输出
+    const chars = result.split('');
+    let index = 0;
+    
+    const sendChar = () => {
+      if (index < chars.length) {
+        res.write(chars[index]);
+        index++;
+        setTimeout(sendChar, 50); // 模拟打字效果
+      } else {
+        res.end();
+      }
+    };
+    
+    sendChar();
+    
+  } catch (error) {
+    console.error('AI写作错误:', error);
+    res.status(500).json({
+      status: 'error',
+      error_message: 'AI写作失败，请稍后重试'
+    });
+  }
+});
+
 // 保存PPT模板接口
 app.post('/api/save-template', (req, res) => {
   try {
@@ -377,7 +539,7 @@ app.post('/api/save-template', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 PPTist AI图片生成服务已启动`);
+  console.log(`🚀 PPTist 服务已启动`);
   console.log(`📍 服务地址: http://localhost:${PORT}`);
   console.log(`🔗 健康检查: http://localhost:${PORT}/api/health`);
 });

@@ -4,6 +4,7 @@
       <Popover trigger="click" placement="bottom-start" v-model:value="mainMenuVisible">
         <template #content>
           <PopoverMenuItem @click="openAIPPTDialog(); mainMenuVisible = false">AI 生成 PPT</PopoverMenuItem>
+          <PopoverMenuItem @click="openCourseImportDialog(); mainMenuVisible = false">📚 导入课程大纲</PopoverMenuItem>
           <FileInput accept="application/vnd.openxmlformats-officedocument.presentationml.presentation"  @change="files => {
             importPPTXFile(files)
             mainMenuVisible = false
@@ -137,6 +138,10 @@ const openMarkupPanel = () => {
 
 const openAIPPTDialog = () => {
   mainStore.setAIPPTDialogState(true)
+}
+
+const openCourseImportDialog = () => {
+  mainStore.setCourseImportDialogState(true)
 }
 </script>
 
