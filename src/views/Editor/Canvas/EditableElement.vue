@@ -47,6 +47,7 @@ const props = defineProps<{
   isMultiSelect: boolean
   selectElement: (e: MouseEvent | TouchEvent, element: PPTElement, canMove?: boolean) => void
   openLinkDialog: () => void
+  openAIImageDialog?: () => void
 }>()
 
 const currentElementComponent = computed<unknown>(() => {
@@ -80,7 +81,7 @@ const contextmenus = (): ContextmenuItem[] => {
     }]
   }
 
-  return [
+  const baseMenus = [
     {
       text: '剪切',
       subText: 'Ctrl + X',
@@ -96,6 +97,21 @@ const contextmenus = (): ContextmenuItem[] => {
       subText: 'Ctrl + V',
       handler: pasteElement,
     },
+  ]
+
+  // 如果是图片元素，添加AI生成图片选项
+  if (props.elementInfo.type === 'image' && props.openAIImageDialog) {
+    console.log('添加AI生成图片菜单项', props.elementInfo.type, !!props.openAIImageDialog)
+    baseMenus.push({ divider: true })
+    baseMenus.push({
+      text: 'AI生成图片',
+      subText: '',
+      handler: props.openAIImageDialog,
+    })
+  }
+
+  return [
+    ...baseMenus,
     { divider: true },
     {
       text: '水平居中',

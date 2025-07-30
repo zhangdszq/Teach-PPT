@@ -78,6 +78,7 @@
           :isMultiSelect="activeElementIdList.length > 1"
           :selectElement="selectElement"
           :openLinkDialog="openLinkDialog"
+          :openAIImageDialog="openAIImageDialog"
           v-show="!hiddenElementIdList.includes(element.id)"
         />
       </div>
@@ -93,6 +94,11 @@
     >
       <LinkDialog @close="linkDialogVisible = false" />
     </Modal>
+
+    <AIImageDialog 
+      :visible="aiImageDialogVisible"
+      @close="aiImageDialogVisible = false"
+    />
   </div>
 </template>
 
@@ -137,6 +143,7 @@ import ShapeCreateCanvas from './ShapeCreateCanvas.vue'
 import MultiSelectOperate from './Operate/MultiSelectOperate.vue'
 import Operate from './Operate/index.vue'
 import LinkDialog from './LinkDialog.vue'
+import AIImageDialog from '../AIImageDialog.vue'
 import Modal from '@/components/Modal.vue'
 
 const mainStore = useMainStore()
@@ -161,6 +168,17 @@ const alignmentLines = ref<AlignmentLineProps[]>([])
 
 const linkDialogVisible = ref(false)
 const openLinkDialog = () => linkDialogVisible.value = true
+
+const aiImageDialogVisible = ref(false)
+const openAIImageDialog = () => {
+  // 确保选中的是图片元素
+  if (handleElementId.value) {
+    const element = elementList.value.find(el => el.id === handleElementId.value)
+    if (element && element.type === 'image') {
+      aiImageDialogVisible.value = true
+    }
+  }
+}
 
 watch(handleElementId, () => {
   mainStore.setActiveGroupElementId('')

@@ -32,7 +32,7 @@
             :options="[
               { label: '中文', value: '中文' },
               { label: '英文', value: 'English' },
-              { label: '日文', value: '日本語' },
+              { label: '日文', value: '日本語' }, 
             ]"
           />
         </div>

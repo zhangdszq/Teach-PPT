@@ -24,6 +24,11 @@ interface AIWritingPayload {
   command: string
 }
 
+interface AIImagePayload {
+  prompt: string
+  model?: string
+}
+
 export default {
   getMockData(filename: string): Promise<any> {
     return axios.get(`./mocks/${filename}.json`)
@@ -86,6 +91,23 @@ export default {
         content,
         command,
         stream: true,
+      }),
+    })
+  },
+
+  AI_Image({
+    prompt,
+    model = 'jimeng',
+  }: AIImagePayload): Promise<any> {
+    // 调用我们新创建的后端服务
+    return fetch('http://localhost:3001/api/generate-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        model,
       }),
     })
   },
