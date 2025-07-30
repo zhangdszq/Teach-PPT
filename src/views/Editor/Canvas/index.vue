@@ -133,6 +133,8 @@ import useScaleCanvas from '@/hooks/useScaleCanvas'
 import useScreening from '@/hooks/useScreening'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useCreateElement from '@/hooks/useCreateElement'
+import api from '@/services'
+import message from '@/utils/message'
 
 import EditableElement from './EditableElement.vue'
 import MouseSelection from './MouseSelection.vue'
@@ -178,6 +180,50 @@ const openAIImageDialog = () => {
     if (element && element.type === 'image') {
       aiImageDialogVisible.value = true
     }
+  }
+}
+
+// 保存当前页面为模板
+const saveAsTemplate = async () => {
+  try {
+    if (!currentSlide.value) {
+      message.error('当前页面为空，无法保存为模板')
+      return
+    }
+
+    const loadingMessage = message.info('正在保存模板...', { duration: 0 })
+    
+    // 构建模板数据，与导出JSON格式保持一致
+    const slidesStore = useSlidesStore()
+    const { theme, viewportRatio, viewportSize } = storeToRefs(slidesStore)
+    
+    const templateName = `模板_${new Date().getTime()}`
+    const templateData = {
+      title: templateName,
+      width: viewportSize.value,
+      height: viewportSize.value * viewportRatio.value,
+      theme: theme.value,
+      slides: [currentSlide.value] // 将当前页面作为模板的唯一页面
+    }
+
+    const response = await api.SaveTemplate({
+      slideData: templateData,
+      templateName: templateName
+    })
+
+    const result = await response.json()
+    
+    loadingMessage.close()
+    
+    if (result.status === 'success') {
+      message.success(`模板保存成功：${result.data.templateName}`)
+    } else {
+      message.error(result.error_message || '模板保存失败')
+    }
+    
+  } catch (error) {
+    console.error('保存模板失败:', error)
+    message.error('模板保存失败，请稍后重试')
   }
 }
 
@@ -359,6 +405,11 @@ const contextmenus = (): ContextmenuItem[] => {
       handler: deleteAllElements,
     },
     { divider: true },
+    {
+      text: '保存模板',
+      subText: '',
+      handler: saveAsTemplate,
+    },
     {
       text: '幻灯片放映',
       subText: 'F5',

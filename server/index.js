@@ -326,6 +326,56 @@ app.get('/api/models', (req, res) => {
   });
 });
 
+// 保存PPT模板接口
+app.post('/api/save-template', (req, res) => {
+  try {
+    const { slideData, templateName } = req.body;
+    
+    if (!slideData) {
+      return res.status(400).json({
+        status: 'error',
+        error_message: '请提供幻灯片数据'
+      });
+    }
+
+    // 生成模板ID和时间戳
+    const templateId = Date.now().toString();
+    const timestamp = new Date().toISOString();
+    
+    // 构建模板数据
+    const templateData = {
+      id: templateId,
+      name: templateName || `模板_${templateId}`,
+      slideData: slideData,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+
+    console.log(`📝 保存PPT模板: ${templateData.name}`);
+    console.log(`📄 模板数据:`, JSON.stringify(slideData, null, 2));
+    
+    // 这里可以将模板数据保存到数据库或文件系统
+    // 目前先返回成功响应，实际项目中可以集成数据库
+    
+    res.json({
+      status: 'success',
+      message: '模板保存成功',
+      data: {
+        templateId: templateId,
+        templateName: templateData.name,
+        timestamp: timestamp
+      }
+    });
+    
+  } catch (error) {
+    console.error('保存模板错误:', error);
+    res.status(500).json({
+      status: 'error',
+      error_message: '模板保存失败，请稍后重试'
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 PPTist AI图片生成服务已启动`);
   console.log(`📍 服务地址: http://localhost:${PORT}`);

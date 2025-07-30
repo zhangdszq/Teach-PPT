@@ -111,4 +111,24 @@ export default {
       }),
     })
   },
+
+  SaveTemplate({
+    slideData,
+    templateName,
+  }: {
+    slideData: any
+    templateName?: string
+  }): Promise<any> {
+    // 调用保存模板API
+    return fetch('http://localhost:3001/api/save-template', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        slideData,
+        templateName,
+      }),
+    })
+  },
 }
