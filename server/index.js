@@ -326,6 +326,63 @@ app.get('/api/models', (req, res) => {
   });
 });
 
+// 获取测试图片数据接口
+app.get('/api/mock-images', (req, res) => {
+  try {
+    console.log('📸 获取测试图片数据');
+    
+    // 生成测试图片数据
+    const mockImages = [
+      {
+        id: 'img_1',
+        src: 'https://picsum.photos/seed/apple/400/300',
+        width: 400,
+        height: 300
+      },
+      {
+        id: 'img_2', 
+        src: 'https://picsum.photos/seed/book/500/400',
+        width: 500,
+        height: 400
+      },
+      {
+        id: 'img_3',
+        src: 'https://picsum.photos/seed/cat/300/300',
+        width: 300,
+        height: 300
+      },
+      {
+        id: 'img_4',
+        src: 'https://picsum.photos/seed/dog/600/400',
+        width: 600,
+        height: 400
+      },
+      {
+        id: 'img_5',
+        src: 'https://picsum.photos/seed/flower/400/600',
+        width: 400,
+        height: 600
+      },
+      {
+        id: 'img_6',
+        src: 'https://picsum.photos/seed/tree/500/300',
+        width: 500,
+        height: 300
+      }
+    ];
+    
+    console.log(`✅ 返回${mockImages.length}张测试图片`);
+    res.json(mockImages);
+    
+  } catch (error) {
+    console.error('获取测试图片数据错误:', error);
+    res.status(500).json({
+      status: 'error',
+      error_message: '获取测试图片数据失败'
+    });
+  }
+});
+
 // AIPPT大纲生成接口
 app.post('/tools/aippt_outline', (req, res) => {
   try {
@@ -339,27 +396,128 @@ app.post('/tools/aippt_outline', (req, res) => {
     
     // 模拟大纲内容
     const mockOutline = `
-## ${content}
 
-### 1. 引言
-- 背景介绍
-- 重要性说明
-- 目标概述
+---
 
-### 2. 主要内容
-- 核心概念解释
-- 关键要点分析
-- 实际应用案例
+## 🧠 教学目标（适合3-6岁）
 
-### 3. 深入分析
-- 详细论述
-- 数据支撑
-- 对比分析
+* 认识字母 A / B / C 的大写与小写
+* 学会字母发音：/æ/、/b/、/k/
+* 理解发音与单词之间的联系（自然拼读意识）
+* 初步进行字母音拼读（初级水平）
 
-### 4. 总结
-- 要点回顾
-- 结论陈述
-- 未来展望
+---
+
+## 📚 教学内容结构（每个字母为一课）
+
+---
+
+### 🌟 **Lesson 1: A a**
+
+#### 📄 教学页面 1：字母形状
+
+* 展示大写和小写：**A a**
+* 画面元素：苹果树上挂着“A”、蚂蚁爬过“A”造型
+* 指导语：**“This is A. Big A, small a.”**
+
+#### 🔊 教学页面 2：字母音
+
+* 语音演示：**“A says /æ/, /æ/, /æ/.”**
+* 音频动画：老师指着“A”，小动物重复发音（apple apple apple）
+
+#### 🖼️ 教学页面 3：字母A开头单词
+
+* 图卡：**A is for Apple, Ant, Alligator**
+* 读音练习：**/æ/ - p - l (apple)**，强调首音 /æ/
+
+---
+
+#### 📝 练习页面 A1：字母音辨认
+
+> **What's the sound?**
+> 🖼️ 图：apple 🍎 – ball ⚽ – cat 🐱
+> 👉 让孩子指出哪个是 /æ/
+
+#### 🧩 练习页面 A2：拼读游戏（听音拖动）
+
+* “Drag the letter to make the word”
+* **a - p - p - l - e**（拼读并点亮苹果图）
+
+---
+
+### 🌟 **Lesson 2: B b**
+
+#### 📄 教学页面 1：字母形状
+
+* 展示大写和小写：**B b**
+* 画面元素：一只小熊（bear）抱着大写B，小蜜蜂飞出小写b
+* 指导语：**“This is B. Big B, small b.”**
+
+#### 🔊 教学页面 2：字母音
+
+* 语音演示：**“B says /b/, /b/, /b/.”**
+* 动画口型强调 /b/ 是双唇爆破音
+
+#### 🖼️ 教学页面 3：字母B开头单词
+
+* 图卡：**B is for Bear, Ball, Banana**
+* 读音练习：**/b/ - e - a - r (bear)**
+
+---
+
+#### 📝 练习页面 B1：配对游戏
+
+> 连接字母和图片
+> **B** → 🐻 🏀 🍌
+> **A** → 🍎 🐜 🐊
+
+#### 🧩 练习页面 B2：初级拼读
+
+> 选择正确拼读
+> **Which one is b-a-l-l?**
+> 选项：ball / bell / bill（配图）
+
+---
+
+### 🌟 **Lesson 3: C c**
+
+#### 📄 教学页面 1：字母形状
+
+* 展示大写和小写：**C c**
+* 画面：猫咪 curled like a C，小C变成香蕉月牙
+* 指导语：**“This is C. Big C, small c.”**
+
+#### 🔊 教学页面 2：字母音
+
+* 语音演示：**“C says /k/, /k/, /k/.”**
+* 动画强调 /k/ 是后舌发音，模拟猫叫 sound
+
+#### 🖼️ 教学页面 3：字母C开头单词
+
+* 图卡：**C is for Cat, Car, Cake**
+* 拼读练习：**/k/ - a - t (cat)**
+
+---
+
+#### 📝 练习页面 C1：字母找图
+
+* 点读互动：出现 6 张图，选出以 /k/ 开头的
+  例：cat 🐱 / dog 🐶 / cake 🎂 / sun ☀️
+
+#### 🧩 练习页面 C2：拼读听写
+
+* 听音：**“/k/ - a - r”**
+* 选图：🚗 / 🍰 / 🐱
+
+---
+
+## 🎮 复习游戏环节（AB C混合）
+
+* **Letter Bingo**：听音点击图卡
+* **Sound Hopscotch**：按发音跳格子（/æ/ /b/ /k/）
+* **Phonics Song**：ABC字母歌 + 单词串烧
+
+---
 `;
 
     // 模拟流式输出
@@ -399,26 +557,26 @@ app.post('/tools/aippt', (req, res) => {
     res.setHeader('Transfer-Encoding', 'chunked');
     
     // 模拟PPT内容
-    const mockPPTContent = {
-      type: "content",
-      data: {
-        title: "主要内容",
+    const mockPPTContent =  {
+    type: "content",
+    data: {
+        title: "F 相关单词",
         items: [
-          {
-            title: "核心概念",
-            text: "详细解释核心概念的定义和重要性"
-          },
-          {
-            title: "关键要点",
-            text: "分析关键要点及其相互关系"
-          },
-          {
-            title: "实际应用",
-            text: "展示在实际场景中的应用案例"
-          }
+            {
+                "title": "Factory",
+                "text": "Factory"
+            },
+            {
+                "title": "fish",
+                "text": "小鱼在水中游，Ff带来惊喜。"
+            },
+            {
+                "title": "flower",
+                "text": "花朵绽放美丽，Ff的温柔象征。"
+            }
         ]
-      }
-    };
+    }
+}
     
     // 发送JSON数据
     setTimeout(() => {
@@ -484,6 +642,242 @@ app.post('/tools/ai_writing', (req, res) => {
     res.status(500).json({
       status: 'error',
       error_message: 'AI写作失败，请稍后重试'
+    });
+  }
+});
+
+// 模板数据存储（实际项目中应该使用数据库）
+const templateData = {
+  template_1: {
+    slides: [
+      {
+        id: 'slide_1',
+        type: 'cover',
+        elements: [
+          {
+            type: 'text',
+            id: 'text_1',
+            left: 100,
+            top: 200,
+            width: 760,
+            height: 100,
+            content: '<p style="text-align: center; font-size: 48px; font-weight: bold; color: #2563eb;">英语字母教学模板</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#2563eb',
+            textType: 'title'
+          }
+        ],
+        background: {
+          type: 'solid',
+          color: '#f8fafc'
+        }
+      },
+      {
+        id: 'slide_content_1',
+        type: 'content',
+        elements: [
+          {
+            type: 'text',
+            id: 'text_content_1',
+            left: 100,
+            top: 100,
+            width: 760,
+            height: 60,
+            content: '<p style="text-align: center; font-size: 32px; font-weight: bold; color: #1f2937;">内容标题</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#1f2937',
+            textType: 'title'
+          },
+          {
+            type: 'text',
+            id: 'text_item_1',
+            left: 100,
+            top: 200,
+            width: 350,
+            height: 200,
+            content: '<p style="font-size: 18px; color: #374151;">内容项目1</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#374151',
+            textType: 'item'
+          },
+          {
+            type: 'text',
+            id: 'text_item_2',
+            left: 500,
+            top: 200,
+            width: 350,
+            height: 200,
+            content: '<p style="font-size: 18px; color: #374151;">内容项目2</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#374151',
+            textType: 'item'
+          }
+        ],
+        background: {
+          type: 'solid',
+          color: '#ffffff'
+        }
+      }
+    ],
+    theme: {
+      backgroundColor: '#ffffff',
+      themeColors: [
+        '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
+        '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'
+      ],
+      fontColor: '#1f2937',
+      fontName: '微软雅黑'
+    }
+  },
+  template_2: {
+    slides: [
+      {
+        id: 'slide_2',
+        type: 'cover',
+        elements: [
+          {
+            type: 'text',
+            id: 'text_2',
+            left: 100,
+            top: 200,
+            width: 760,
+            height: 100,
+            content: '<p style="text-align: center; font-size: 48px; font-weight: bold; color: #059669;">自然拼读教学模板</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#059669',
+            textType: 'title'
+          }
+        ],
+        background: {
+          type: 'solid',
+          color: '#f0fdf4'
+        }
+      },
+      {
+        id: 'slide_content_2',
+        type: 'content',
+        elements: [
+          {
+            type: 'text',
+            id: 'text_content_2',
+            left: 100,
+            top: 100,
+            width: 760,
+            height: 60,
+            content: '<p style="text-align: center; font-size: 32px; font-weight: bold; color: #1f2937;">拼读内容</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#1f2937',
+            textType: 'title'
+          },
+          {
+            type: 'text',
+            id: 'text_item_3',
+            left: 100,
+            top: 200,
+            width: 350,
+            height: 200,
+            content: '<p style="font-size: 18px; color: #374151;">拼读项目1</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#374151',
+            textType: 'item'
+          },
+          {
+            type: 'text',
+            id: 'text_item_4',
+            left: 500,
+            top: 200,
+            width: 350,
+            height: 200,
+            content: '<p style="font-size: 18px; color: #374151;">拼读项目2</p>',
+            defaultFontName: '微软雅黑',
+            defaultColor: '#374151',
+            textType: 'item'
+          }
+        ],
+        background: {
+          type: 'solid',
+          color: '#f0fdf4'
+        }
+      }
+    ],
+    theme: {
+      backgroundColor: '#ffffff',
+      themeColors: [
+        '#059669', '#dc2626', '#7c3aed', '#ea580c',
+        '#0891b2', '#65a30d', '#c2410c', '#9333ea'
+      ],
+      fontColor: '#1f2937',
+      fontName: '微软雅黑'
+    }
+  }
+};
+
+// 获取模板数据接口
+app.get('/api/template/:templateId', (req, res) => {
+  try {
+    const { templateId } = req.params;
+    
+    console.log(`📋 获取模板数据: ${templateId}`);
+    
+    // 特殊处理slides请求，返回默认的初始幻灯片数组
+    if (templateId === 'slides') {
+      const defaultSlides = [
+        {
+          id: 'slide_default_1',
+          elements: [
+            {
+              type: 'text',
+              id: 'text_default_1',
+              left: 100,
+              top: 200,
+              width: 760,
+              height: 100,
+              content: '<p style="text-align: center; font-size: 48px; font-weight: bold; color: #2563eb;">欢迎使用 Teach PPT</p>',
+              defaultFontName: '微软雅黑',
+              defaultColor: '#2563eb'
+            },
+            {
+              type: 'text',
+              id: 'text_default_2',
+              left: 100,
+              top: 320,
+              width: 760,
+              height: 60,
+              content: '<p style="text-align: center; font-size: 24px; color: #64748b;">专为英语教学设计的在线PPT制作工具</p>',
+              defaultFontName: '微软雅黑',
+              defaultColor: '#64748b'
+            }
+          ],
+          background: {
+            type: 'solid',
+            color: '#ffffff'
+          }
+        }
+      ];
+      
+      console.log('✅ 返回默认幻灯片数组，长度:', defaultSlides.length);
+      console.log('📋 第一个幻灯片ID:', defaultSlides[0].id);
+      console.log('📋 第一个幻灯片元素数量:', defaultSlides[0].elements.length);
+      
+      // 设置正确的响应头
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      
+      return res.status(200).json(defaultSlides);
+    }
+    
+    if (templateData[templateId]) {
+      res.json(templateData[templateId]);
+    } else {
+      // 返回默认模板
+      res.json(templateData.template_1);
+    }
+    
+  } catch (error) {
+    console.error('获取模板数据错误:', error);
+    res.status(500).json({
+      status: 'error',
+      error_message: '获取模板数据失败'
     });
   }
 });

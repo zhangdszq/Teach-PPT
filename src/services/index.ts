@@ -34,7 +34,8 @@ export default {
   },
 
   getFileData(filename: string): Promise<any> {
-    return axios.get(`https://s.vipkidstatic.com/fe-static/temp/${filename}.json`)
+    // 使用本地后端服务获取数据
+    return axios.get(`${SERVER_URL}/api/template/${filename}`)
   },
 
   AIPPT_Outline({

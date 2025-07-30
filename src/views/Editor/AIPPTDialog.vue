@@ -1,10 +1,10 @@
 <template>
   <div class="aippt-dialog">
     <div class="header">
-      <span class="title">AIPPT</span>
-      <span class="subtite" v-if="step === 'template'">从下方挑选合适的模板，开始生成PPT</span>
-      <span class="subtite" v-else-if="step === 'outline'">确认下方内容大纲（点击编辑内容，右键添加/删除大纲项），开始选择模板</span>
-      <span class="subtite" v-else>在下方输入您的PPT主题，并适当补充信息，如行业、岗位、学科、用途等</span>
+      <span class="title">AI英语教学PPT</span>
+      <span class="subtite" v-if="step === 'template'">从下方挑选适合的英语教学模板，开始生成课件</span>
+      <span class="subtite" v-else-if="step === 'outline'">确认下方英语课程大纲（点击编辑内容，右键添加/删除教学环节），开始选择模板</span>
+      <span class="subtite" v-else>在下方输入您的英语教学主题，如字母学习、单词教学、语法练习、口语训练等</span>
     </div>
     
     <template v-if="step === 'setup'">
@@ -12,12 +12,12 @@
         ref="inputRef"
         v-model:value="keyword" 
         :maxlength="50" 
-        placeholder="请输入PPT主题，如：大学生职业生涯规划" 
+        placeholder="请输入英语教学主题，如：字母A的认知与发音练习" 
         @enter="createOutline()"
       >
         <template #suffix>
           <span class="count">{{ keyword.length }} / 50</span>
-          <div class="submit" type="primary" @click="createOutline()"><IconSend class="icon" /> AI 生成</div>
+          <div class="submit" type="primary" @click="createOutline()"><IconSend class="icon" /> 生成课程大纲</div>
         </template>
       </Input>
       <div class="recommends">
@@ -42,11 +42,11 @@
             style="width: 80px;"
             v-model:value="style"
             :options="[
-              { label: '通用', value: '通用' },
-              { label: '学术风', value: '学术风' },
-              { label: '职场风', value: '职场风' },
-              { label: '教育风', value: '教育风' },
-              { label: '营销风', value: '营销风' },
+              { label: '儿童友好', value: '儿童友好' },
+              { label: '互动游戏', value: '互动游戏' },
+              { label: '卡通可爱', value: '卡通可爱' },
+              { label: '教育专业', value: '教育专业' },
+              { label: '启蒙引导', value: '启蒙引导' },
             ]"
           />
         </div>
@@ -70,8 +70,8 @@
             style="width: 100px;"
             v-model:value="img"
             :options="[
-              { label: '无', value: '' },
-              { label: '模拟测试', value: 'test' },
+              { label: '无配图', value: '' },
+              { label: '教学图片', value: 'test' },
               { label: 'AI搜图', value: 'ai-search', disabled: true },
               { label: 'AI生图', value: 'ai-create', disabled: true },
             ]"
@@ -86,11 +86,11 @@
        </div>
       <div class="btns" v-if="!outlineCreating">
         <Button class="btn" type="primary" @click="openTemplateSelect">选择模板</Button>
-        <Button class="btn" @click="outline = ''; step = 'setup'">返回重新生成</Button>
+        <Button class="btn" @click="outline = ''; step = 'setup'">重新设计课程</Button>
       </div>
     </div>
 
-    <FullscreenSpin :loading="loading" tip="AI生成中，请耐心等待 ..." />
+    <FullscreenSpin :loading="loading" tip="正在生成英语教学课件，请耐心等待 ..." />
     
     <!-- 模板选择对话框 -->
     <TemplateSelectDialog 
@@ -123,7 +123,7 @@ const { templates } = storeToRefs(slideStore)
 const { AIPPT, presetImgPool, getMdContent } = useAIPPT()
 
 const language = ref('中文')
-const style = ref('通用')
+const style = ref('儿童友好')
 const img = ref('')
 const keyword = ref('')
 const outline = ref('')
@@ -137,16 +137,16 @@ const model = ref('GLM-4-Flash')
 const templateSelectVisible = ref(false)
 
 const recommends = ref([
-  '公司年会策划方案',
-  '大数据如何改变世界',
-  '餐饮市场调查与研究',
-  'AIGC在教育领域的应用',
-  '5G技术如何改变我们的生活',
-  '大学生职业生涯规划',
-  '2025科技前沿动态',
-  '社交媒体与品牌营销',
-  '年度工作总结与展望',
-  '区块链技术及其应用',
+  '字母A的认知与发音练习',
+  '自然拼读基础入门教学',
+  '英语单词卡片互动游戏',
+  '简单英语对话情景练习',
+  '英语字母书写训练课程',
+  '幼儿英语启蒙认知课',
+  '英语语音语调纠正练习',
+  '英语绘本故事阅读教学',
+  '英语课堂互动游戏设计',
+  '英语听力基础训练课程',
 ]) 
 
 onMounted(() => {
@@ -176,7 +176,7 @@ const handleTemplateSelect = (template: any) => {
 }
 
 const createOutline = async () => {
-  if (!keyword.value) return message.error('请先输入PPT主题')
+  if (!keyword.value) return message.error('请先输入英语教学主题')
 
   loading.value = true
   outlineCreating.value = true
@@ -193,32 +193,27 @@ const createOutline = async () => {
   const reader: ReadableStreamDefaultReader = stream.body.getReader()
   const decoder = new TextDecoder('utf-8')
   
-  outline.value = `
-## 字母 Ff 的学习 (Learning Ff)\n
-## 引入字母 Ff 的大小写和发音。\n
-## 学习与 Ff 相关的核心单词。\n`
-  outlineCreating.value = false
-  return
-  // const readStream = () => {
-  //   reader.read().then(({ done, value }) => {
-  //     if (done) {
-  //       outline.value = getMdContent(outline.value)
-  //       outline.value = outline.value.replace(/<!--[\s\S]*?-->/g, '').replace(/<think>[\s\S]*?<\/think>/g, '')
-  //       outlineCreating.value = false
-  //       return
-  //     }
+  // 使用真实的AI流式响应
+  const readStream = () => {
+    reader.read().then(({ done, value }) => {
+      if (done) {
+        outline.value = getMdContent(outline.value)
+        outline.value = outline.value.replace(/<!--[\s\S]*?-->/g, '').replace(/<think>[\s\S]*?<\/think>/g, '')
+        outlineCreating.value = false
+        return
+      }
   
-  //     const chunk = decoder.decode(value, { stream: true })
-  //     outline.value += chunk
+      const chunk = decoder.decode(value, { stream: true })
+      outline.value += chunk
 
-  //     if (outlineRef.value) {
-  //       outlineRef.value.scrollTop = outlineRef.value.scrollHeight + 20
-  //     }
+      if (outlineRef.value) {
+        outlineRef.value.scrollTop = outlineRef.value.scrollHeight + 20
+      }
 
-  //     readStream()
-  //   })
-  // }
-  // readStream()
+      readStream()
+    })
+  }
+  readStream()
 }
 
 const createPPT = async () => {
@@ -232,8 +227,16 @@ const createPPT = async () => {
   })
 
   if (img.value === 'test') {
-    const imgs = await api.getMockData('imgs')
-    presetImgPool(imgs)
+    // 使用后端API获取测试图片数据
+    try {
+      const response = await fetch(`${import.meta.env.MODE === 'development' ? 'http://localhost:3001' : 'https://server.pptist.cn'}/api/mock-images`)
+      const imgs = await response.json()
+      presetImgPool(imgs)
+    } catch (error) {
+      console.warn('获取测试图片失败，使用默认配置:', error)
+      // 如果获取失败，使用空数组或默认图片
+      presetImgPool([])
+    }
   }
 
   const templateData = await api.getFileData(selectedTemplate.value)
@@ -256,9 +259,8 @@ const createPPT = async () => {
       try {
         let text = chunk.replace('```json', '').replace('```', '').trim()
         if (text) {
-          text = "{\"type\":\"content\",\"data\":{\"title\":\"F 相关单词\",\"items\":[{\"title\":\"Factory\",\"text\":\"Factory\"},{\"title\":\"fish\",\"text\":\"小鱼在水中游，Ff带来惊喜。\"},{\"title\":\"flower\",\"text\":\"花朵绽放美丽，Ff的温柔象征。\"}]}}"
-          console.log(text);
-          let slide: AIPPTSlide = JSON.parse(text)
+          console.log('🎯 接收到AI生成的PPT内容:', text);
+          const slide: AIPPTSlide = JSON.parse(text)
           AIPPT(templateSlides, [slide])
           loading.value = false
           mainStore.setAIPPTDialogState(false)
