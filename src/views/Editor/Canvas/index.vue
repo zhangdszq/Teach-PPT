@@ -168,6 +168,7 @@ const {
   creatingCustomShape,
   canvasScale,
   textFormatPainter,
+  showMarkupPanel,
 } = storeToRefs(mainStore)
 const { currentSlide } = storeToRefs(useSlidesStore())
 const { ctrlKeyState, spaceKeyState } = storeToRefs(useKeyboardStore())
@@ -330,7 +331,7 @@ const insertCustomShape = (data: CreateCustomShapeData) => {
 }
 
 const contextmenus = (): ContextmenuItem[] => {
-  return [
+  const baseMenus = [
     {
       text: '粘贴',
       subText: 'Ctrl + V',
@@ -377,17 +378,24 @@ const contextmenus = (): ContextmenuItem[] => {
       handler: deleteAllElements,
     },
     { divider: true },
-    {
+  ]
+
+  // 只有在标注模式下才显示保存模板按钮
+  if (showMarkupPanel.value) {
+    baseMenus.push({
       text: '保存模板',
       subText: '',
       handler: openSaveTemplateDialog,
-    },
-    {
-      text: '幻灯片放映',
-      subText: 'F5',
-      handler: enterScreeningFromStart,
-    },
-  ]
+    })
+  }
+
+  baseMenus.push({
+    text: '幻灯片放映',
+    subText: 'F5',
+    handler: enterScreeningFromStart,
+  })
+
+  return baseMenus
 }
 
 provide(injectKeySlideScale, canvasScale)
