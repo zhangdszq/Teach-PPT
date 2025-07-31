@@ -4,6 +4,22 @@ const axios = require('axios');
 const crypto = require('crypto');
 require('dotenv').config();
 
+// 导入向量服务
+let vectorService = null;
+let setupVectorAPI = null;
+
+// 加载向量服务模块
+function loadVectorService() {
+  try {
+    vectorService = require('./vectorService');
+    const vectorAPIModule = require('./vectorAPI');
+    setupVectorAPI = vectorAPIModule.setupVectorAPI;
+    console.log('✅ 向量服务模块加载成功');
+  } catch (error) {
+    console.warn('⚠️ 向量服务模块加载失败，将跳过向量功能:', error.message);
+  }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -152,7 +168,7 @@ class VolcengineVisualService {
       console.log('📡 火山引擎API响应状态:', response.status);
       
       // 处理响应
-      let respStr = JSON.stringify(response.data).replace(/\\u0026/g, '&');
+      const respStr = JSON.stringify(response.data).replace(/\\u0026/g, '&');
       const responseData = JSON.parse(respStr);
       
       console.log('📄 火山引擎API响应数据:', JSON.stringify(responseData, null, 2));
@@ -417,13 +433,13 @@ app.post('/tools/aippt_outline', (req, res) => {
 #### 📄 教学页面 1：字母形状
 
 * 展示大写和小写：**A a**
-* 画面元素：苹果树上挂着“A”、蚂蚁爬过“A”造型
-* 指导语：**“This is A. Big A, small a.”**
+* 画面元素：苹果树上挂着"A"、蚂蚁爬过"A"造型
+* 指导语：**"This is A. Big A, small a."**
 
 #### 🔊 教学页面 2：字母音
 
-* 语音演示：**“A says /æ/, /æ/, /æ/.”**
-* 音频动画：老师指着“A”，小动物重复发音（apple apple apple）
+* 语音演示：**"A says /æ/, /æ/, /æ/."**
+* 音频动画：老师指着"A"，小动物重复发音（apple apple apple）
 
 #### 🖼️ 教学页面 3：字母A开头单词
 
@@ -440,7 +456,7 @@ app.post('/tools/aippt_outline', (req, res) => {
 
 #### 🧩 练习页面 A2：拼读游戏（听音拖动）
 
-* “Drag the letter to make the word”
+* "Drag the letter to make the word"
 * **a - p - p - l - e**（拼读并点亮苹果图）
 
 ---
@@ -451,11 +467,11 @@ app.post('/tools/aippt_outline', (req, res) => {
 
 * 展示大写和小写：**B b**
 * 画面元素：一只小熊（bear）抱着大写B，小蜜蜂飞出小写b
-* 指导语：**“This is B. Big B, small b.”**
+* 指导语：**"This is B. Big B, small b."**
 
 #### 🔊 教学页面 2：字母音
 
-* 语音演示：**“B says /b/, /b/, /b/.”**
+* 语音演示：**"B says /b/, /b/, /b/."**
 * 动画口型强调 /b/ 是双唇爆破音
 
 #### 🖼️ 教学页面 3：字母B开头单词
@@ -485,11 +501,11 @@ app.post('/tools/aippt_outline', (req, res) => {
 
 * 展示大写和小写：**C c**
 * 画面：猫咪 curled like a C，小C变成香蕉月牙
-* 指导语：**“This is C. Big C, small c.”**
+* 指导语：**"This is C. Big C, small c."**
 
 #### 🔊 教学页面 2：字母音
 
-* 语音演示：**“C says /k/, /k/, /k/.”**
+* 语音演示：**"C says /k/, /k/, /k/."**
 * 动画强调 /k/ 是后舌发音，模拟猫叫 sound
 
 #### 🖼️ 教学页面 3：字母C开头单词
@@ -506,7 +522,7 @@ app.post('/tools/aippt_outline', (req, res) => {
 
 #### 🧩 练习页面 C2：拼读听写
 
-* 听音：**“/k/ - a - r”**
+* 听音：**"/k/ - a - r"**
 * 选图：🚗 / 🍰 / 🐱
 
 ---
@@ -932,8 +948,26 @@ app.post('/api/save-template', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 PPTist 服务已启动`);
   console.log(`📍 服务地址: http://localhost:${PORT}`);
   console.log(`🔗 健康检查: http://localhost:${PORT}/api/health`);
+  
+  // 加载并初始化向量服务
+  loadVectorService();
+  if (vectorService && setupVectorAPI) {
+    // 先注册API路由，确保路由可用
+    setupVectorAPI(app);
+    console.log(`🔍 向量搜索API路由已注册: http://localhost:${PORT}/api/vector/`);
+    console.log(`📊 向量服务统计: http://localhost:${PORT}/api/vector/stats`);
+    
+    // 然后异步初始化向量服务（不阻塞API路由）
+    vectorService.initialize()
+      .then(() => {
+        console.log('✅ 向量服务初始化成功');
+      })
+      .catch((error) => {
+        console.warn('⚠️ 向量服务初始化失败，但API路由仍可用:', error.message);
+      });
+  }
 });
