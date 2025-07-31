@@ -1,0 +1,47 @@
+{
+  "templateName": "字母形状教学模板",
+  "description": "用于教授字母形状的模板，展示大写和小写字母，配合形象化的视觉元素和指导语",
+  "subject": "英语",
+  "grade": "小学",
+  "tags": ["字母教学", "自然拼读", "视觉学习", "大小写", "形状认知"],
+  "layoutType": "三段式布局",
+  "elements": [
+    {
+      "type": "title",
+      "count": 1,
+      "description": "页面标题：字母形状"
+    },
+    {
+      "type": "letter_display", 
+      "count": 2,
+      "description": "大写和小写字母展示：A a"
+    },
+    {
+      "type": "visual_scene",
+      "count": 2,
+      "description": "形象化场景：苹果树上挂着A、蚂蚁爬过A造型"
+    },
+    {
+      "type": "instruction_text",
+      "count": 1,
+      "description": "英文指导语：This is A. Big A, small a."
+    }
+  ],
+  "visualStyle": "卡通插画风格，色彩鲜艳",
+  "teachingPurpose": "通过视觉联想帮助学生认识和记忆字母的大小写形状",
+  "contentStructure": {
+    "mainFocus": "字母A的形状认知",
+    "visualElements": ["苹果树", "蚂蚁", "字母A造型"],
+    "textElements": ["大写A", "小写a", "英文指导语"],
+    "interactionType": "观察学习"
+  },
+  "pedagogicalFeatures": {
+    "learningMethod": "视觉联想记忆",
+    "skillFocus": "字母识别",
+    "ageAppropriate": "幼儿园-小学低年级",
+    "languageSkills": ["字母认知", "形状识别", "大小写区分"]
+  },
+  "templateCategory": "自然拼读基础",
+  "difficulty": "入门级",
+  "estimatedDuration": "5-10分钟"
+}

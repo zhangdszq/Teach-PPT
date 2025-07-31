@@ -100,7 +100,7 @@ export default {
     model = 'jimeng',
   }: AIImagePayload): Promise<any> {
     // 调用我们新创建的后端服务
-    return fetch('http://localhost:3001/api/generate-image', {
+    return fetch('http://localhost:3001/api/image/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

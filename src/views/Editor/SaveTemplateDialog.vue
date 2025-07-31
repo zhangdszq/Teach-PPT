@@ -91,6 +91,21 @@
               {{ suggestion }}
             </span>
           </div>
+          
+          <!-- AI 特征提取区域 -->
+          <div class="ai-extract-section">
+            <button 
+              @click="handleAIExtract" 
+              :disabled="aiExtracting"
+              class="btn btn-ai-extract"
+            >
+              <span class="ai-icon">🤖</span>
+              {{ aiExtracting ? 'AI分析中...' : 'AI智能提取特征' }}
+            </button>
+            <div class="ai-extract-tip">
+              使用AI分析当前页面，自动提取模板特征和标签
+            </div>
+          </div>
         </div>
       </div>
       
@@ -112,7 +127,6 @@
 import { ref, reactive, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
-import api from '@/services'
 import message from '@/utils/message'
 import Modal from '@/components/Modal.vue'
 
@@ -130,6 +144,8 @@ const emit = defineEmits<Emits>()
 const dialogVisible = ref(false)
 const saving = ref(false)
 const newTag = ref('')
+const aiExtracting = ref(false)
+const aiExtractedFeatures = ref<any>(null) // 存储AI分析的完整数据
 
 // 表单数据
 const templateForm = reactive({
@@ -184,6 +200,7 @@ const resetForm = () => {
   templateForm.grades = []
   templateForm.tags = []
   newTag.value = ''
+  aiExtractedFeatures.value = null // 重置AI数据
 }
 
 // 添加标签
@@ -205,6 +222,412 @@ const addSuggestedTag = (tag: string) => {
 // 移除标签
 const removeTag = (index: number) => {
   templateForm.tags.splice(index, 1)
+}
+
+// AI 特征提取
+const handleAIExtract = async () => {
+  try {
+    aiExtracting.value = true
+    
+    // 获取当前页面数据
+    const slidesStore = useSlidesStore()
+    const { currentSlide } = storeToRefs(slidesStore)
+    
+    if (!currentSlide.value) {
+      message.error('当前页面为空，无法进行AI分析')
+      return
+    }
+
+    // 生成页面截图
+    const imageBase64 = await captureSlideImage()
+    if (!imageBase64) {
+      message.error('页面截图失败，请重试')
+      return
+    }
+
+    // 调用后端AI特征提取接口
+    const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/ai/extract-template-features' : '/api/ai/extract-template-features'
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        imageBase64,
+        slideData: currentSlide.value
+      })
+    })
+
+    const result = await response.json()
+    
+    if (result.status === 'success' && result.data && result.data.features) {
+      const features = result.data.features
+      
+      // 存储AI分析的完整数据，用于后续保存
+      aiExtractedFeatures.value = features
+      
+      // 自动填充模板名称
+      if (features.templateName && !templateForm.name.trim()) {
+        templateForm.name = features.templateName
+      }
+      
+      // 自动填充模板描述
+      if (features.description && !templateForm.description.trim()) {
+        templateForm.description = features.description
+      }
+      
+      // 自动填充学科信息
+      if (features.subject && !templateForm.subject) {
+        // 将中文学科名转换为对应的值
+        const subjectMap: Record<string, string> = {
+          '英语': 'english',
+          '语文': 'chinese', 
+          '数学': 'math',
+          '科学': 'science',
+          '历史': 'history',
+          '地理': 'geography'
+        }
+        templateForm.subject = subjectMap[features.subject] || 'other'
+      }
+      
+      // 处理年级信息
+      if (features.grade && typeof features.grade === 'string') {
+        // 解析年级字符串，如 "幼儿园、小学、初中、高中"
+        const gradeText = features.grade
+        const suggestedGrades: string[] = []
+        
+        if (gradeText.includes('小学') || gradeText.includes('一年级') || gradeText.includes('二年级') || 
+            gradeText.includes('三年级') || gradeText.includes('四年级') || gradeText.includes('五年级') || 
+            gradeText.includes('六年级')) {
+          suggestedGrades.push('grade1', 'grade2', 'grade3', 'grade4', 'grade5', 'grade6')
+        }
+        
+        if (gradeText.includes('初中') || gradeText.includes('初一') || gradeText.includes('初二') || gradeText.includes('初三')) {
+          suggestedGrades.push('junior1', 'junior2', 'junior3')
+        }
+        
+        if (gradeText.includes('高中') || gradeText.includes('高一') || gradeText.includes('高二') || gradeText.includes('高三')) {
+          suggestedGrades.push('senior1', 'senior2', 'senior3')
+        }
+        
+        if (suggestedGrades.length > 0) {
+          templateForm.grades = [...new Set([...templateForm.grades, ...suggestedGrades])]
+        }
+      }
+      
+      // 自动填充标签
+      if (features.tags && Array.isArray(features.tags) && features.tags.length > 0) {
+        // 合并现有标签和AI提取的标签，去重并限制数量
+        const allTags = [...new Set([...templateForm.tags, ...features.tags])]
+        templateForm.tags = allTags.slice(0, 5)
+      }
+      
+      // 显示成功消息，包含提取到的关键信息
+      const extractedInfo = []
+      if (features.templateName) extractedInfo.push(`模板名称: ${features.templateName}`)
+      if (features.subject) extractedInfo.push(`学科: ${features.subject}`)
+      if (features.tags && features.tags.length > 0) extractedInfo.push(`标签: ${features.tags.join(', ')}`)
+      
+      message.success(`AI特征提取完成！已自动填充: ${extractedInfo.join(' | ')}`)
+
+      // 将生成的图片添加到幻灯片中
+      if (result.data.image_url) {
+        const imageElement = {
+          type: 'image',
+          id: `el-${new Date().getTime()}`,
+          src: result.data.image_url,
+          width: 300,
+          height: 300,
+          left: 100,
+          top: 100,
+          rotate: 0,
+        }
+        slidesStore.addElement(imageElement)
+        message.success('图片已成功添加到当前页面！')
+      }
+      
+    } else {
+      message.error(result.message || 'AI特征提取失败，请重试')
+    }
+    
+  } catch (error) {
+    console.error('AI特征提取失败:', error)
+    message.error('AI特征提取失败，请检查网络连接后重试')
+  } finally {
+    aiExtracting.value = false
+  }
+}
+
+// 压缩图片
+const compressImage = (canvas: HTMLCanvasElement, maxWidth: number = 800, maxHeight: number = 600, quality: number = 0.6): string => {
+  const { width, height } = canvas
+  
+  // 计算压缩比例
+  let scale = 1
+  if (width > maxWidth || height > maxHeight) {
+    scale = Math.min(maxWidth / width, maxHeight / height)
+  }
+  
+  const newWidth = Math.floor(width * scale)
+  const newHeight = Math.floor(height * scale)
+  
+  console.log(`🔧 图片压缩: ${width}x${height} -> ${newWidth}x${newHeight}, 压缩比: ${scale.toFixed(2)}`)
+  
+  // 创建新的canvas进行压缩
+  const compressedCanvas = document.createElement('canvas')
+  compressedCanvas.width = newWidth
+  compressedCanvas.height = newHeight
+  
+  const ctx = compressedCanvas.getContext('2d')
+  if (!ctx) {
+    console.warn('⚠️ 无法获取canvas上下文，使用原图')
+    return canvas.toDataURL('image/jpeg', quality)
+  }
+  
+  // 设置高质量的图像缩放
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  
+  // 绘制压缩后的图像
+  ctx.drawImage(canvas, 0, 0, newWidth, newHeight)
+  
+  // 转换为JPEG格式以进一步压缩
+  const compressedBase64 = compressedCanvas.toDataURL('image/jpeg', quality)
+  
+  console.log(`📦 压缩完成: ${Math.round(compressedBase64.length / 1024)}KB`)
+  
+  return compressedBase64
+}
+
+// 截取当前页面图片
+const captureSlideImage = async (): Promise<string | null> => {
+  try {
+    console.log('🔍 开始DOM结构调试...')
+    
+    // 扩展搜索范围，查找所有可能的元素
+    const selectors = [
+      '.canvas',
+      '.viewport-wrapper', 
+      '.viewport',
+      '.slide-content',
+      '.editor-content',
+      '[class*="canvas"]',
+      '[class*="viewport"]',
+      '[class*="slide"]'
+    ]
+    
+    let targetElement: HTMLElement | null = null
+    
+    for (const selector of selectors) {
+      const element = document.querySelector(selector) as HTMLElement
+      if (element && element.offsetWidth > 0 && element.offsetHeight > 0) {
+        targetElement = element
+        console.log(`✅ 找到可用元素: ${selector}`, {
+          width: element.offsetWidth,
+          height: element.offsetHeight,
+          className: element.className
+        })
+        break
+      }
+    }
+    
+    if (!targetElement) {
+      console.error('❌ 未找到任何可用的页面元素')
+      // 尝试使用整个body作为最后的备选方案
+      targetElement = document.body
+      console.log('🔄 使用body元素作为备选方案')
+    }
+    
+    let capturedCanvas: HTMLCanvasElement | null = null
+    
+    // 方法1: 尝试使用html2canvas（如果可用）
+    if (window.html2canvas) {
+      console.log('🎨 使用html2canvas进行截图...')
+      try {
+        capturedCanvas = await window.html2canvas(targetElement, {
+          backgroundColor: '#ffffff',
+          scale: 0.8, // 适中的缩放比例
+          useCORS: true,
+          allowTaint: true,
+          width: targetElement.offsetWidth,
+          height: targetElement.offsetHeight,
+          logging: false
+        })
+        
+        console.log('✅ html2canvas截图成功')
+      } catch (html2canvasError) {
+        console.warn('⚠️ html2canvas截图失败:', html2canvasError)
+      }
+    }
+    
+    // 方法2: 查找现有的canvas元素
+    if (!capturedCanvas) {
+      const canvasElements = document.querySelectorAll('canvas')
+      console.log('🔍 找到canvas元素数量:', canvasElements.length)
+      
+      for (let i = 0; i < canvasElements.length; i++) {
+        const canvas = canvasElements[i] as HTMLCanvasElement
+        if (canvas.width > 0 && canvas.height > 0) {
+          try {
+            // 测试是否可以访问canvas数据
+            canvas.toDataURL('image/png', 0.1)
+            capturedCanvas = canvas
+            console.log(`✅ 使用第${i+1}个canvas元素`)
+            break
+          } catch (canvasError) {
+            console.warn(`⚠️ 第${i+1}个canvas元素不可访问:`, canvasError)
+          }
+        }
+      }
+    }
+    
+    // 方法3: 动态加载html2canvas并重试
+    if (!capturedCanvas && !window.html2canvas) {
+      console.log('📦 尝试动态加载html2canvas...')
+      try {
+        await loadHtml2Canvas()
+        if (window.html2canvas) {
+          capturedCanvas = await window.html2canvas(targetElement, {
+            backgroundColor: '#ffffff',
+            scale: 0.8,
+            useCORS: true,
+            allowTaint: true
+          })
+          console.log('✅ 动态加载html2canvas截图成功')
+        }
+      } catch (loadError) {
+        console.warn('⚠️ 动态加载html2canvas失败:', loadError)
+      }
+    }
+    
+    // 方法4: 使用SVG + foreignObject (实验性)
+    if (!capturedCanvas) {
+      console.log('🧪 尝试使用SVG方法截图...')
+      try {
+        const svgImage = await captureWithSVG(targetElement)
+        if (svgImage) {
+          // 将SVG图像转换为canvas
+          const img = new Image()
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+            img.src = svgImage
+          })
+          
+          const canvas = document.createElement('canvas')
+          canvas.width = img.width
+          canvas.height = img.height
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(img, 0, 0)
+            capturedCanvas = canvas
+            console.log('✅ SVG方法截图成功')
+          }
+        }
+      } catch (svgError) {
+        console.warn('⚠️ SVG方法截图失败:', svgError)
+      }
+    }
+    
+    // 如果获取到了canvas，进行压缩处理
+    if (capturedCanvas) {
+      const originalSize = Math.round(capturedCanvas.toDataURL('image/png').length / 1024)
+      console.log(`📏 原始图片大小: ${originalSize}KB`)
+      
+      // 压缩图片：最大宽度800px，最大高度600px，质量0.6
+      const compressedBase64 = compressImage(capturedCanvas, 800, 600, 0.6)
+      const compressedSize = Math.round(compressedBase64.length / 1024)
+      
+      console.log(`✅ 图片压缩完成: ${originalSize}KB -> ${compressedSize}KB (压缩率: ${((1 - compressedSize/originalSize) * 100).toFixed(1)}%)`)
+      
+      // 如果压缩后仍然太大（超过200KB），进一步压缩
+      if (compressedSize > 200) {
+        console.log('📦 图片仍然较大，进行二次压缩...')
+        const furtherCompressed = compressImage(capturedCanvas, 600, 450, 0.4)
+        const finalSize = Math.round(furtherCompressed.length / 1024)
+        console.log(`✅ 二次压缩完成: ${compressedSize}KB -> ${finalSize}KB`)
+        return furtherCompressed
+      }
+      
+      return compressedBase64
+    }
+    
+    console.error('❌ 所有截图方法都失败了')
+    return null
+    
+  } catch (error) {
+    console.error('❌ 截图过程发生错误:', error)
+    return null
+  }
+}
+
+// 动态加载html2canvas库
+const loadHtml2Canvas = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (window.html2canvas) {
+      resolve()
+      return
+    }
+    
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load html2canvas'))
+    document.head.appendChild(script)
+  })
+}
+
+// 使用SVG + foreignObject进行截图
+const captureWithSVG = async (element: HTMLElement): Promise<string | null> => {
+  try {
+    const rect = element.getBoundingClientRect()
+    const width = rect.width
+    const height = rect.height
+    
+    // 创建SVG
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('width', width.toString())
+    svg.setAttribute('height', height.toString())
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+    
+    // 创建foreignObject
+    const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+    foreignObject.setAttribute('width', '100%')
+    foreignObject.setAttribute('height', '100%')
+    
+    // 克隆目标元素
+    const clonedElement = element.cloneNode(true) as HTMLElement
+    foreignObject.appendChild(clonedElement)
+    svg.appendChild(foreignObject)
+    
+    // 转换为base64
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const svgBase64 = btoa(unescape(encodeURIComponent(svgData)))
+    const dataUrl = `data:image/svg+xml;base64,${svgBase64}`
+    
+    // 使用Image加载SVG并转换为Canvas
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0)
+          resolve(canvas.toDataURL('image/png', 0.8))
+        } else {
+          resolve(null)
+        }
+      }
+      img.onerror = () => resolve(null)
+      img.src = dataUrl
+    })
+    
+  } catch (error) {
+    console.error('SVG截图失败:', error)
+    return null
+  }
 }
 
 // 取消保存
@@ -251,9 +674,23 @@ const handleSave = async () => {
       }
     }
 
-    const response = await api.SaveTemplate({
+    // 构建完整的保存数据，包含AI分析的特征
+    const saveData = {
       slideData: templateData,
-      templateName: templateForm.name
+      templateName: templateForm.name,
+      features: aiExtractedFeatures.value // 包含AI分析的完整数据
+    }
+
+    console.log('💾 保存模板数据（包含AI特征）:', saveData)
+
+    // 调用后端保存接口
+    const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/ai/save-template' : '/api/ai/save-template'
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(saveData)
     })
 
     const result = await response.json()
@@ -270,6 +707,13 @@ const handleSave = async () => {
     message.error('模板保存失败，请稍后重试')
   } finally {
     saving.value = false
+  }
+}
+
+// 声明全局类型
+declare global {
+  interface Window {
+    html2canvas?: any
   }
 }
 </script>
@@ -414,6 +858,54 @@ const handleSave = async () => {
           &:hover {
             background: #e5e7eb;
           }
+        }
+      }
+      
+      .ai-extract-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+        
+        .btn-ai-extract {
+          width: 100%;
+          padding: 10px 16px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          
+          .ai-icon {
+            font-size: 16px;
+          }
+          
+          &:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          }
+          
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+          }
+        }
+        
+        .ai-extract-tip {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #6b7280;
+          text-align: center;
+          line-height: 1.4;
         }
       }
     }

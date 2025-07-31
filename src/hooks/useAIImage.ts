@@ -43,11 +43,11 @@ export default () => {
       // 处理不同服务的响应格式
       if (model === 'jimeng') {
         // 火山引擎即梦服务的响应格式
-        if (data.status === 'success' && data.image_url) {
-          imageUrl = data.image_url
+        if (data.status === 'success' && data.data && data.data.image_url) {
+          imageUrl = data.data.image_url
         }
         else {
-          throw new Error(data.error_message || '即梦图片生成失败')
+          throw new Error(data.message || data.error_message || '即梦图片生成失败')
         }
       }
       else {

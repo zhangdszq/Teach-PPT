@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI特征提取测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI特征提取功能测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 创建测试画布</h2>
+        <canvas id="testCanvas" width="800" height="600"></canvas>
+        <button onclick="drawTestSlide()">绘制测试幻灯片</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 测试AI特征提取</h2>
+        <button id="extractBtn" onclick="testAIExtract()">测试AI特征提取</button>
+        <div id="extractResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 绘制测试幻灯片
+        function drawTestSlide() {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 清空画布
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制标题
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('英语单词学习', canvas.width / 2, 80);
+            
+            // 绘制单词
+            ctx.font = 'bold 48px Arial';
+            ctx.fillStyle = '#007bff';
+            ctx.fillText('APPLE', canvas.width / 2, 180);
+            
+            // 绘制音标
+            ctx.font = '24px Arial';
+            ctx.fillStyle = '#666666';
+            ctx.fillText('[ˈæpl]', canvas.width / 2, 220);
+            
+            // 绘制释义
+            ctx.font = '28px Arial';
+            ctx.fillStyle = '#333333';
+            ctx.fillText('苹果', canvas.width / 2, 280);
+            
+            // 绘制例句
+            ctx.font = '20px Arial';
+            ctx.fillStyle = '#555555';
+            ctx.textAlign = 'left';
+            ctx.fillText('例句：I like to eat apples.', 100, 350);
+            ctx.fillText('翻译：我喜欢吃苹果。', 100, 380);
+            
+            // 绘制图片占位符
+            ctx.strokeStyle = '#ddd';
+            ctx.strokeRect(500, 320, 200, 150);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(500, 320, 200, 150);
+            ctx.fillStyle = '#999';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('苹果图片', 600, 400);
+            
+            console.log('测试幻灯片绘制完成');
+        }
+        
+        // 测试AI特征提取
+        async function testAIExtract() {
+            const btn = document.getElementById('extractBtn');
+            const result = document.getElementById('extractResult');
+            
+            try {
+                btn.disabled = true;
+                btn.textContent = 'AI分析中...';
+                result.style.display = 'none';
+                
+                // 获取画布图片
+                const canvas = document.getElementById('testCanvas');
+                const imageBase64 = canvas.toDataURL('image/png', 0.8);
+                
+                // 模拟幻灯片数据
+                const slideData = {
+                    id: 'test-slide-1',
+                    elements: [
+                        {
+                            type: 'text',
+                            content: '英语单词学习',
+                            style: { fontSize: 36, fontWeight: 'bold' }
+                        },
+                        {
+                            type: 'text', 
+                            content: 'APPLE',
+                            style: { fontSize: 48, color: '#007bff' }
+                        },
+                        {
+                            type: 'text',
+                            content: '[ˈæpl]',
+                            style: { fontSize: 24 }
+                        },
+                        {
+                            type: 'text',
+                            content: '苹果',
+                            style: { fontSize: 28 }
+                        }
+                    ]
+                };
+                
+                // 调用AI特征提取接口
+                const response = await fetch('http://localhost:3001/api/extract-template-features', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        imageBase64,
+                        slideData
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // 显示结果
+                result.style.display = 'block';
+                result.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.status === 'success') {
+                    console.log('AI特征提取成功:', data.data);
+                } else {
+                    console.error('AI特征提取失败:', data.message);
+                }
+                
+            } catch (error) {
+                console.error('测试失败:', error);
+                result.style.display = 'block';
+                result.textContent = '测试失败: ' + error.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '测试AI特征提取';
+            }
+        }
+        
+        // 页面加载完成后自动绘制测试幻灯片
+        window.onload = function() {
+            drawTestSlide();
+        };
+    </script>
+</body>
+</html>

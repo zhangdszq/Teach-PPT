@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>截图测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/lib/index.js"></script>
+</head>
+<body>
+    <div id="test-element" style="width: 200px; height: 100px; background: #f0f0f0; padding: 20px;">
+        <h3>测试内容</h3>
+        <p>这是一个测试元素</p>
+    </div>
+    
+    <button onclick="testScreenshot()">测试截图</button>
+    
+    <script>
+        async function testScreenshot() {
+            try {
+                const element = document.getElementById('test-element');
+                console.log('📸 开始截图测试...');
+                
+                const dataUrl = await htmlToImage.toPng(element, {
+                    quality: 0.8,
+                    backgroundColor: '#ffffff'
+                });
+                
+                console.log('📸 截图完成');
+                console.log('📊 数据长度:', dataUrl.length);
+                console.log('📊 数据格式:', dataUrl.substring(0, 50) + '...');
+                
+                // 提取base64
+                const base64Data = dataUrl.split(',')[1];
+                console.log('📊 Base64长度:', base64Data ? base64Data.length : 'null');
+                
+                // 显示图片
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.style.border = '1px solid #ccc';
+                document.body.appendChild(img);
+                
+            } catch (error) {
+                console.error('❌ 截图失败:', error);
+            }
+        }
+    </script>
+</body>
+</html>

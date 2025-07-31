@@ -3,7 +3,7 @@
     class="notes-panel" 
     :width="300" 
     :height="130" 
-    title="幻灯片类型标注" 
+    title="PPT 模板制作" 
     :left="-270" 
     :top="90"
     @close="close()"
