@@ -43,7 +43,7 @@ export default {
     language,
     model,
   }: AIPPTOutlinePayload): Promise<any> {
-    return fetch(`${SERVER_URL}/tools/aippt_outline`, {
+    return fetch(`${SERVER_URL}/api/ai/outline`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -63,7 +63,7 @@ export default {
     style,
     model,
   }: AIPPTPayload): Promise<any> {
-    return fetch(`${SERVER_URL}/tools/aippt`, {
+    return fetch(`${SERVER_URL}/api/ai/aippt`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ export default {
     content,
     command,
   }: AIWritingPayload): Promise<any> {
-    return fetch(`${SERVER_URL}/tools/ai_writing`, {
+    return fetch(`${SERVER_URL}/api/ai/ai_writing`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

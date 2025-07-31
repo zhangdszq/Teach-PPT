@@ -224,6 +224,41 @@ const removeTag = (index: number) => {
   templateForm.tags.splice(index, 1)
 }
 
+// 清理对象中的 base64 图片数据
+const cleanBase64Images = (obj: any): any => {
+  if (!obj) return obj
+  
+  // 如果是数组，递归处理每个元素
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanBase64Images(item))
+  }
+  
+  // 如果是对象，递归处理每个属性
+  if (typeof obj === 'object') {
+    const result = { ...obj }
+    
+    // 检查常见的图片属性名
+    const imageProps = ['src', 'url', 'image', 'backgroundImage', 'thumbnail']
+    
+    for (const key in result) {
+      // 如果是 base64 图片数据，清空它
+      if (imageProps.includes(key) && typeof result[key] === 'string' && result[key].startsWith('data:image')) {
+        console.log(`🧹 清理 base64 图片数据: ${key}`)
+        result[key] = '[图片数据已清理]'
+      } 
+      // 递归处理嵌套对象
+      else if (typeof result[key] === 'object' && result[key] !== null) {
+        result[key] = cleanBase64Images(result[key])
+      }
+    }
+    
+    return result
+  }
+  
+  // 其他类型直接返回
+  return obj
+}
+
 // AI 特征提取
 const handleAIExtract = async () => {
   try {
@@ -245,6 +280,10 @@ const handleAIExtract = async () => {
       return
     }
 
+    // 清理 slideData 中的 base64 图片数据
+    const cleanedSlideData = cleanBase64Images(JSON.parse(JSON.stringify(currentSlide.value)))
+    console.log('🧹 已清理 slideData 中的 base64 图片数据')
+    
     // 调用后端AI特征提取接口
     const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/ai/extract-template-features' : '/api/ai/extract-template-features'
     const response = await fetch(apiUrl, {
@@ -254,7 +293,7 @@ const handleAIExtract = async () => {
       },
       body: JSON.stringify({
         imageBase64,
-        slideData: currentSlide.value
+        slideData: cleanedSlideData
       })
     })
 
@@ -341,6 +380,10 @@ const handleAIExtract = async () => {
           left: 100,
           top: 100,
           rotate: 0,
+          fixedRatio: false,
+          color: '',
+          loop: false,
+          autoplay: false
         }
         slidesStore.addElement(imageElement)
         message.success('图片已成功添加到当前页面！')
@@ -472,10 +515,10 @@ const captureSlideImage = async (): Promise<string | null> => {
             // 测试是否可以访问canvas数据
             canvas.toDataURL('image/png', 0.1)
             capturedCanvas = canvas
-            console.log(`✅ 使用第${i+1}个canvas元素`)
+            console.log(`✅ 使用第${i + 1}个canvas元素`)
             break
           } catch (canvasError) {
-            console.warn(`⚠️ 第${i+1}个canvas元素不可访问:`, canvasError)
+            console.warn(`⚠️ 第${i + 1}个canvas元素不可访问:`, canvasError)
           }
         }
       }
@@ -538,7 +581,7 @@ const captureSlideImage = async (): Promise<string | null> => {
       const compressedBase64 = compressImage(capturedCanvas, 800, 600, 0.6)
       const compressedSize = Math.round(compressedBase64.length / 1024)
       
-      console.log(`✅ 图片压缩完成: ${originalSize}KB -> ${compressedSize}KB (压缩率: ${((1 - compressedSize/originalSize) * 100).toFixed(1)}%)`)
+      console.log(`✅ 图片压缩完成: ${originalSize}KB -> ${compressedSize}KB (压缩率: ${((1 - compressedSize / originalSize) * 100).toFixed(1)}%)`)
       
       // 如果压缩后仍然太大（超过200KB），进一步压缩
       if (compressedSize > 200) {
@@ -674,9 +717,12 @@ const handleSave = async () => {
       }
     }
 
+    // 清理 slideData 中的 base64 图片数据
+    const cleanedTemplateData = cleanBase64Images(templateData)
+
     // 构建完整的保存数据，包含AI分析的特征
     const saveData = {
-      slideData: templateData,
+      slideData: cleanedTemplateData,
       templateName: templateForm.name,
       features: aiExtractedFeatures.value // 包含AI分析的完整数据
     }

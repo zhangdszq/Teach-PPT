@@ -226,23 +226,6 @@ const createPPT = async () => {
     model: model.value,
   })
 
-  if (img.value === 'test') {
-    // 使用后端API获取测试图片数据
-    try {
-      const response = await fetch(`${import.meta.env.MODE === 'development' ? 'http://localhost:3001' : 'https://server.pptist.cn'}/api/mock-images`)
-      const imgs = await response.json()
-      presetImgPool(imgs)
-    } catch (error) {
-      console.warn('获取测试图片失败，使用默认配置:', error)
-      // 如果获取失败，使用空数组或默认图片
-      presetImgPool([])
-    }
-  }
-
-  const templateData = await api.getFileData(selectedTemplate.value)
-  const templateSlides: Slide[] = templateData.slides
-  const templateTheme: SlideTheme = templateData.theme
-
   const reader: ReadableStreamDefaultReader = stream.body.getReader()
   const decoder = new TextDecoder('utf-8')
   
@@ -251,7 +234,6 @@ const createPPT = async () => {
       if (done) {
         loading.value = false
         mainStore.setAIPPTDialogState(false)
-        slideStore.setTheme(templateTheme)
         return
       }
   
@@ -259,18 +241,43 @@ const createPPT = async () => {
       try {
         let text = chunk.replace('```json', '').replace('```', '').trim()
         if (text) {
-          console.log('🎯 接收到AI生成的PPT内容:', text);
-          const slide: AIPPTSlide = JSON.parse(text)
-          AIPPT(templateSlides, [slide])
-          loading.value = false
-          mainStore.setAIPPTDialogState(false)
-          slideStore.setTheme(templateTheme)
-          return
+          console.log('🎯 接收到AI生成的完整slideData:', text);
+          
+          // 直接解析后端返回的完整slideData结构
+          const slideData = JSON.parse(text)
+          
+          // 检查数据结构是否正确
+          if (slideData.slides && Array.isArray(slideData.slides)) {
+            console.log(`✅ 成功解析${slideData.slides.length}张幻灯片`)
+            
+            // 直接使用后端返回的幻灯片数据
+            const currentSlides = slideStore.slides
+            if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+              // 如果当前是空幻灯片，直接替换所有幻灯片
+              slideStore.setSlides(slideData.slides)
+            } else {
+              // 如果已有幻灯片，则添加到现有幻灯片后面
+              const newSlides = [...currentSlides, ...slideData.slides]
+              slideStore.setSlides(newSlides)
+            }
+            
+            // 应用主题（如果后端返回了主题数据）
+            if (slideData.theme) {
+              slideStore.setTheme(slideData.theme)
+            }
+            
+            loading.value = false
+            mainStore.setAIPPTDialogState(false)
+            return
+          } else {
+            console.error('❌ 后端返回的数据格式不正确，缺少slides数组')
+            message.error('生成的PPT数据格式不正确')
+          }
         }
       }
       catch (err) {
-        // eslint-disable-next-line
-        console.error(err)
+        console.error('❌ 解析PPT数据失败:', err)
+        message.error('解析PPT数据失败，请重试')
       }
 
       readStream()
