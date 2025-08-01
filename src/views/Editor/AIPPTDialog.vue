@@ -137,7 +137,7 @@ const model = ref('GLM-4-Flash')
 const templateSelectVisible = ref(false)
 
 const recommends = ref([
-  '字母A的认知与发音练习',
+  '小学四年级单词与句子',
   '自然拼读基础入门教学',
   '英语单词卡片互动游戏',
   '简单英语对话情景练习',
