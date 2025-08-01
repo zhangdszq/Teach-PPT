@@ -7,13 +7,15 @@ export const ASSET_URL = 'https://asset.pptist.cn'
 
 interface AIPPTOutlinePayload {
   content: string
-  language: string
+  courseType?: string
+  grade: string
   model: string
 }
 
 interface AIPPTPayload {
   content: string
-  language: string
+  courseType?: string
+  grade: string
   style: string
   model: string
 }
@@ -40,7 +42,8 @@ export default {
 
   AIPPT_Outline({
     content,
-    language,
+    courseType,
+    grade,
     model,
   }: AIPPTOutlinePayload): Promise<any> {
     return fetch(`${SERVER_URL}/api/ai/outline`, {
@@ -50,7 +53,8 @@ export default {
       },
       body: JSON.stringify({
         content,
-        language,
+        courseType,
+        grade,
         model,
         stream: true,
       }),
@@ -59,7 +63,8 @@ export default {
 
   AIPPT({
     content,
-    language,
+    courseType,
+    grade,
     style,
     model,
   }: AIPPTPayload): Promise<any> {
@@ -70,7 +75,8 @@ export default {
       },
       body: JSON.stringify({
         content,
-        language,
+        courseType,
+        grade,
         model,
         style,
         stream: true,
@@ -100,7 +106,7 @@ export default {
     model = 'jimeng',
   }: AIImagePayload): Promise<any> {
     // 调用我们新创建的后端服务
-    return fetch('http://localhost:3001/api/image/generate', {
+    return fetch(`${SERVER_URL}/api/image/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -120,7 +126,7 @@ export default {
     templateName?: string
   }): Promise<any> {
     // 调用保存模板API
-    return fetch('http://localhost:3001/api/save-template', {
+    return fetch(`${SERVER_URL}/api/save-template`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

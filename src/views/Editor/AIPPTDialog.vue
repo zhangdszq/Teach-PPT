@@ -21,18 +21,30 @@
         </template>
       </Input>
       <div class="recommends">
-        <div class="recommend" v-for="(item, index) in recommends" :key="index" @click="setKeyword(item)">{{ item }}</div>
+        <div class="recommend" 
+             v-for="(item, index) in courseTypeOptions" 
+             :key="index" 
+             :class="{ active: courseType === item }"
+             @click="setKeyword(item)">
+          {{ item }}
+        </div>
       </div>
       <div class="configs">
         <div class="config-item">
-          <div class="label">语言：</div>
+          <div class="label">年级：</div>
           <Select 
             style="width: 80px;"
-            v-model:value="language"
+            v-model:value="grade"
             :options="[
-              { label: '中文', value: '中文' },
-              { label: '英文', value: 'English' },
-              { label: '日文', value: '日本語' }, 
+              { label: '1年级', value: '1年级' },
+              { label: '2年级', value: '2年级' },
+              { label: '3年级', value: '3年级' },
+              { label: '4年级', value: '4年级' },
+              { label: '5年级', value: '5年级' },
+              { label: '6年级', value: '6年级' },
+              { label: '初一', value: '初一' },
+              { label: '初二', value: '初二' },
+              { label: '初三', value: '初三' },
             ]"
           />
         </div>
@@ -122,10 +134,11 @@ const slideStore = useSlidesStore()
 const { templates } = storeToRefs(slideStore)
 const { AIPPT, presetImgPool, getMdContent } = useAIPPT()
 
-const language = ref('中文')
+const grade = ref('1年级')
 const style = ref('儿童友好')
 const img = ref('')
 const keyword = ref('')
+const courseType = ref('')
 const outline = ref('')
 const selectedTemplate = ref('template_1')
 const loading = ref(false)
@@ -136,8 +149,8 @@ const step = ref<'setup' | 'outline' | 'template'>('setup')
 const model = ref('GLM-4-Flash')
 const templateSelectVisible = ref(false)
 
-const recommends = ref([
-  '小学四年级单词与句子',
+const courseTypeOptions = ref([
+  '单词与句子',
   '自然拼读基础入门教学',
   '英语单词卡片互动游戏',
   '简单英语对话情景练习',
@@ -147,7 +160,7 @@ const recommends = ref([
   '英语绘本故事阅读教学',
   '英语课堂互动游戏设计',
   '英语听力基础训练课程',
-]) 
+])
 
 onMounted(() => {
   setTimeout(() => {
@@ -156,7 +169,7 @@ onMounted(() => {
 })
 
 const setKeyword = (value: string) => {
-  keyword.value = value
+  courseType.value = value
   inputRef.value!.focus()
 }
 
@@ -183,7 +196,8 @@ const createOutline = async () => {
   
   const stream = await api.AIPPT_Outline({
     content: keyword.value,
-    language: language.value,
+    courseType: courseType.value,
+    grade: grade.value,
     model: model.value,
   })
 
@@ -221,7 +235,8 @@ const createPPT = async () => {
 
   const stream = await api.AIPPT({
     content: outline.value,
-    language: language.value,
+    courseType: courseType.value,
+    grade: grade.value,
     style: style.value,
     model: model.value,
   })
@@ -239,7 +254,7 @@ const createPPT = async () => {
   
       const chunk = decoder.decode(value, { stream: true })
       try {
-        let text = chunk.replace('```json', '').replace('```', '').trim()
+        const text = chunk.replace('```json', '').replace('```', '').trim()
         if (text) {
           console.log('🎯 接收到AI生成的完整slideData:', text);
           
@@ -352,6 +367,11 @@ const createPPT = async () => {
 
     &:hover {
       color: $themeColor;
+    }
+
+    &.active {
+      background-color: $themeColor;
+      color: #fff;
     }
   }
 }
