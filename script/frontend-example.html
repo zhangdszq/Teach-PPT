@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI PPT生成器 - 测试页面</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        textarea {
+            height: 200px;
+            resize: vertical;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+            color: #7f8c8d;
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .slide-preview {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+        }
+        
+        .slide-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .slide-content {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .json-viewer {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 AI PPT生成器</h1>
+        
+        <form id="pptForm">
+            <div class="form-group">
+                <label for="subject">学科:</label>
+                <select id="subject" name="subject">
+                    <option value="英语">英语</option>
+                    <option value="数学">数学</option>
+                    <option value="语文">语文</option>
+                    <option value="科学">科学</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="gradeLevel">年级:</label>
+                <select id="gradeLevel" name="gradeLevel">
+                    <option value="幼儿园">幼儿园</option>
+                    <option value="小学">小学</option>
+                    <option value="初中">初中</option>
+                    <option value="高中">高中</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="outlineContent">课程大纲内容:</label>
+                <textarea id="outlineContent" name="outlineContent" placeholder="请输入课程大纲内容...">## 🧠 教学目标（适合3-6岁）
+
+* 认识字母 A / B / C 的大写与小写
+* 学会字母发音：/æ/、/b/、/k/
+* 理解发音与单词之间的联系（自然拼读意识）
+* 初步进行字母音拼读（初级水平）
+
+### 🌟 **Lesson 1: A a**
+
+#### 📄 教学页面 1：字母形状
+* 展示大写和小写：**A a**
+* 画面元素：苹果树上挂着"A"、蚂蚁爬过"A"造型
+* 指导语：**"This is A. Big A, small a."**
+
+#### 🔊 教学页面 2：字母音
+* 语音演示：**"A says /æ/, /æ/, /æ/."**
+* 音频动画：老师指着"A"，小动物重复发音（apple apple apple）
+
+#### 🖼️ 教学页面 3：字母A开头单词
+* 图卡：**A is for Apple, Ant, Alligator**
+* 读音练习：**/æ/ - p - l (apple)**，强调首音 /æ/</textarea>
+            </div>
+            
+            <button type="submit" class="btn" id="generateBtn">🚀 生成PPT</button>
+        </form>
+        
+        <div class="loading" id="loading">
+            <p>⏳ 正在生成PPT，请稍候...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+        
+        <div class="result" id="result">
+            <h3>📊 生成结果</h3>
+            <div id="pptInfo"></div>
+            <div id="slidesPreview"></div>
+            
+            <h4>🔍 完整JSON数据</h4>
+            <div class="json-viewer" id="jsonViewer"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('pptForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                subject: formData.get('subject'),
+                gradeLevel: formData.get('gradeLevel'),
+                outlineContent: formData.get('outlineContent')
+            };
+            
+            // 显示加载状态
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
+            
+            try {
+                console.log('📤 发送PPT生成请求...', data);
+                
+                const response = await fetch('http://localhost:8080/api/ai/generate-ppt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccess('✅ PPT生成成功！');
+                    displayResult(result.data);
+                } else {
+                    showError('❌ 生成失败: ' + (result.message || '未知错误'));
+                }
+                
+            } catch (error) {
+                console.error('请求失败:', error);
+                showError('❌ 请求失败: ' + error.message + '\n请确保后端服务正在运行');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('generateBtn').disabled = false;
+            }
+        });
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+        
+        function displayResult(data) {
+            const resultDiv = document.getElementById('result');
+            const pptInfo = document.getElementById('pptInfo');
+            const slidesPreview = document.getElementById('slidesPreview');
+            const jsonViewer = document.getElementById('jsonViewer');
+            
+            // 显示PPT基本信息
+            pptInfo.innerHTML = `
+                <div class="slide-preview">
+                    <div class="slide-title">📋 PPT基本信息</div>
+                    <div class="slide-content">
+                        <p><strong>标题:</strong> ${data.pptStructure.title}</p>
+                        <p><strong>学科:</strong> ${data.pptStructure.subject}</p>
+                        <p><strong>年级:</strong> ${data.pptStructure.gradeLevel}</p>
+                        <p><strong>总页数:</strong> ${data.pptStructure.totalSlides}</p>
+                        <p><strong>使用模板:</strong> ${data.pptStructure.templateName}</p>
+                        <p><strong>生成时间:</strong> ${new Date(data.generatedAt).toLocaleString()}</p>
+                    </div>
+                </div>
+            `;
+            
+            // 显示幻灯片预览
+            if (data.pptStructure.slides) {
+                let slidesHtml = '<h4>📄 幻灯片预览</h4>';
+                data.pptStructure.slides.forEach(slide => {
+                    slidesHtml += `
+                        <div class="slide-preview">
+                            <div class="slide-title">第${slide.slideNumber}页: ${slide.layoutType}</div>
+                            <div class="slide-content">
+                                <p><strong>元素数量:</strong> ${slide.elements ? slide.elements.length : 0}</p>
+                                <p><strong>交互元素:</strong> ${slide.interactiveElements ? slide.interactiveElements.length : 0}</p>
+                                ${slide.elements ? slide.elements.map(el => 
+                                    `<p>• ${el.type}: ${el.content || el.placeholder || '待填充'}</p>`
+                                ).join('') : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                slidesPreview.innerHTML = slidesHtml;
+            }
+            
+            // 显示学习目标
+            if (data.knowledgePoints && data.knowledgePoints.learningObjectives) {
+                pptInfo.innerHTML += `
+                    <div class="slide-preview">
+                        <div class="slide-title">🎯 学习目标</div>
+                        <div class="slide-content">
+                            ${data.knowledgePoints.learningObjectives.map((obj, index) => 
+                                `<p>${index + 1}. ${obj}</p>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 显示完整JSON
+            jsonViewer.textContent = JSON.stringify(data, null, 2);
+            
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
