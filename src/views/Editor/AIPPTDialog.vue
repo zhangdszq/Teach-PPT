@@ -17,7 +17,7 @@
       >
         <template #suffix>
           <span class="count">{{ keyword.length }} / 50</span>
-          <div class="submit" type="primary" @click="createOutline()"><IconSend class="icon" /> 生成课程大纲</div>
+          <div class="submit" type="primary" @click="createOutline()"><IconSend class="icon" /> 生成课程内容</div>
         </template>
       </Input>
       <div class="recommends">

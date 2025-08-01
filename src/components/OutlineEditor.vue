@@ -50,11 +50,16 @@ const activeItemId = ref('')
 watch(data, () => {
   let markdown = ''
   const prefixTitle = '#'
-  const prefixItem = '-'
   for (const item of data.value) {
     if (item.lv !== 1) markdown += '\n'
-    if (item.title) markdown += `${prefixTitle.repeat(item.lv)} ${item.content}`
-    else markdown += `${prefixItem} ${item.content}`
+    if (item.title) {
+      markdown += `${prefixTitle.repeat(item.lv)} ${item.content}`
+    } else {
+      // 对于列表项，根据层级添加相应的缩进
+      const indentLevel = Math.max(0, item.lv - 4)
+      const indent = '    '.repeat(indentLevel) // 每个层级4个空格
+      markdown += `${indent}- ${item.content}`
+    }
   }
   emit('update:value', markdown)
 })
@@ -62,16 +67,18 @@ watch(data, () => {
 onMounted(() => {
   const lines = props.value.split('\n')
   const result: OutlineItem[] = []
+  let currentContextLevel = 4 // 当前上下文层级
 
   for (const line of lines) {
     if (!line.trim()) continue
 
     const headerMatch = line.match(/^(#+)\s*(.*)/)
-    const listMatch = line.match(/^-\s*(.*)/)
+    const listMatch = line.match(/^(\s*)-\s*(.*)/)
 
     if (headerMatch) {
       const lv = headerMatch[1].length
       const content = headerMatch[2]
+      currentContextLevel = lv + 1 // 更新上下文层级，标题的下一级
       result.push({
         id: nanoid(),
         content,
@@ -80,18 +87,23 @@ onMounted(() => {
       })
     }
     else if (listMatch) {
-      const content = listMatch[1]
+      const indentSpaces = listMatch[1].length
+      const content = listMatch[2]
+      // 根据缩进空格数计算额外的缩进层级
+      const extraIndentLevel = Math.floor(indentSpaces / 4)
+      const lv = currentContextLevel + extraIndentLevel // 基于当前上下文层级加上额外缩进
       result.push({
         id: nanoid(),
         content,
-        lv: 4,
+        lv,
       })
     }
     else {
+      // 普通文本行，保持当前上下文层级
       result.push({
         id: nanoid(),
         content: line.trim(),
-        lv: 4
+        lv: currentContextLevel
       })
     }
   }
@@ -284,6 +296,22 @@ const contextmenus = (el: HTMLElement): ContextmenuItem[] => {
       font-size: 13px;
       padding-left: 20px;
     }
+    &.lv-5 {
+      font-size: 13px;
+      padding-left: 40px;
+    }
+    &.lv-6 {
+      font-size: 13px;
+      padding-left: 60px;
+    }
+    &.lv-7 {
+      font-size: 13px;
+      padding-left: 80px;
+    }
+    &.lv-8 {
+      font-size: 13px;
+      padding-left: 100px;
+    }
   }
   .text {
     height: 100%;
@@ -343,7 +371,11 @@ const contextmenus = (el: HTMLElement): ContextmenuItem[] => {
   .item.lv-3 .flag::after {
     content: '节';
   }
-  .item.lv-4 .flag::after {
+  .item.lv-4 .flag::after,
+  .item.lv-5 .flag::after,
+  .item.lv-6 .flag::after,
+  .item.lv-7 .flag::after,
+  .item.lv-8 .flag::after {
     opacity: 0;
   }
 }
