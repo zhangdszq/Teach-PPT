@@ -38,6 +38,7 @@ export interface MainState {
   showMarkupPanel: boolean
   showAIPPTDialog: boolean
   showCourseImportDialog: boolean
+  isTemplateMakingMode: boolean
 }
 
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
@@ -75,6 +76,7 @@ export const useMainStore = defineStore('main', {
     showMarkupPanel: false, // 打开类型标注面板
     showAIPPTDialog: false, // 打开AIPPT创建窗口
     showCourseImportDialog: false, // 打开课程导入对话框
+    isTemplateMakingMode: false, // 是否处于PPT模板制作模式
   }),
 
   getters: {
@@ -211,6 +213,10 @@ export const useMainStore = defineStore('main', {
 
     setCourseImportDialogState(show: boolean) {
       this.showCourseImportDialog = show
+    },
+
+    setTemplateMakingModeState(show: boolean) {
+      this.isTemplateMakingMode = show
     },
   },
 })

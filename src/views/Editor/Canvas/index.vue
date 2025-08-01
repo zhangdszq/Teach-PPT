@@ -199,6 +199,10 @@ const openSaveTemplateDialog = () => {
   saveTemplateDialogVisible.value = true
 }
 
+const openMarkupPanel = () => {
+  mainStore.setMarkupPanelState(true)
+}
+
 
 watch(handleElementId, () => {
   mainStore.setActiveGroupElementId('')
@@ -372,6 +376,11 @@ const contextmenus = (): ContextmenuItem[] => {
           handler: () => mainStore.setGridLineSize(100),
         },
       ],
+    },
+    {
+      text: 'PPT模板制作',
+      subText: '',
+      handler: openMarkupPanel,
     },
     {
       text: '重置当前页',

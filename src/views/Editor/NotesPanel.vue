@@ -69,7 +69,8 @@
         />
         <div class="footer">
           <IconDelete class="btn icon" v-tooltip="'清空本页批注'" style="flex: 1" @click="clear()" />
-          <Button type="primary" class="btn" style="flex: 12" @click="createNote()">添加批注</Button>
+          <Button type="primary" class="btn" style="flex: 8" @click="createNote()">添加批注</Button>
+          <Button type="primary" class="btn" style="flex: 4" @click="openSaveTemplateDialog()">模板制作</Button>
         </div>
       </div>
     </div>
@@ -82,6 +83,7 @@ import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
 import { useMainStore, useSlidesStore } from '@/store'
 import type { Note } from '@/types/slides'
+import emitter, { EmitterEvents } from '@/utils/emitter'
 
 import MoveablePanel from '@/components/MoveablePanel.vue'
 import TextArea from '@/components/TextArea.vue'
@@ -201,6 +203,10 @@ const clear = () => {
 
 const close = () => {
   mainStore.setNotesPanelState(false)
+}
+
+const openSaveTemplateDialog = () => {
+  mainStore.setMarkupPanelState(true)
 }
 </script>
 
