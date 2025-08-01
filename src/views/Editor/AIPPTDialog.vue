@@ -122,6 +122,7 @@ import type { AIPPTSlide } from '@/types/AIPPT'
 import type { Slide, SlideTheme } from '@/types/slides'
 import message from '@/utils/message'
 import { useMainStore, useSlidesStore } from '@/store'
+import { createBlankSlide, createSlideFromAIData } from '@/utils/slideUtils'
 import Input from '@/components/Input.vue'
 import Button from '@/components/Button.vue'
 import Select from '@/components/Select.vue'
@@ -244,62 +245,218 @@ const createPPT = async () => {
   const reader: ReadableStreamDefaultReader = stream.body.getReader()
   const decoder = new TextDecoder('utf-8')
   
+  let buffer = '' // 用于累积不完整的数据
+  
+  // 处理缓冲区数据的函数
+  const processBufferData = async (data: string) => {
+    try {
+      // 清理数据，移除markdown代码块标记
+      const cleanData = data.replace(/```json/g, '').replace(/```/g, '').trim()
+      
+      if (!cleanData) return
+      
+      console.log('🎯 处理缓冲区数据:', cleanData.substring(0, 200) + '...')
+      
+      // 按 PAGE_SEPARATOR 分割数据，每个部分是一个完整的JSON对象
+      const pages = cleanData.split('---PAGE_SEPARATOR---').filter(page => page.trim())
+      
+      for (const pageData of pages) {
+        const trimmedPageData = pageData.trim()
+        if (!trimmedPageData) continue
+        
+        try {
+          // 尝试解析每个页面数据作为JSON
+          const aiData = JSON.parse(trimmedPageData)
+          
+          if (aiData && typeof aiData === 'object') {
+            console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
+            
+            // 创建一页空白PPT
+            const blankSlide = createBlankSlide()
+            console.log('✅ 创建空白PPT页面，ID:', blankSlide.id)
+            
+            // 调用后端模板匹配接口，完整传递AI返回的内容
+            const matchedTemplate = await matchTemplate(aiData, selectedTemplate.value)
+            console.log('🎨 模板匹配完成:', matchedTemplate)
+            
+            // 使用工具函数在空白PPT上绘制内容
+            const finalSlide = createSlideFromAIData(aiData, matchedTemplate, blankSlide.id)
+            console.log('🎨 内容绘制完成，最终页面ID:', finalSlide.id)
+            
+            // 添加到幻灯片集合
+            const currentSlides = slideStore.slides
+            if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+              // 如果当前是空幻灯片，直接替换
+              slideStore.setSlides([finalSlide])
+            } else {
+              // 如果已有幻灯片，则添加到现有幻灯片后面
+              slideStore.addSlide(finalSlide)
+            }
+            
+            console.log(`✅ 成功添加1张幻灯片，当前总数: ${slideStore.slides.length}`)
+          }
+        } catch (pageError) {
+          // 页面解析失败，可能是不完整的JSON，继续处理下一页
+          console.log('⚠️ 跳过无法解析的页面:', trimmedPageData.substring(0, 50) + '...')
+        }
+      }
+      
+      // 清空已处理的缓冲区
+      buffer = ''
+      
+    } catch (err) {
+      console.error('❌ 处理缓冲区数据失败:', err)
+      // 不显示错误消息，因为可能是数据不完整导致的正常情况
+    }
+  }
+  
   const readStream = () => {
-    reader.read().then(({ done, value }) => {
+    reader.read().then(async ({ done, value }) => {
       if (done) {
+        // 处理最后剩余的数据
+        if (buffer.trim()) {
+          await processBufferData(buffer)
+        }
         loading.value = false
         mainStore.setAIPPTDialogState(false)
         return
       }
   
       const chunk = decoder.decode(value, { stream: true })
-      try {
-        const text = chunk.replace('```json', '').replace('```', '').trim()
-        if (text) {
-          console.log('🎯 接收到AI生成的完整slideData:', text);
-          
-          // 直接解析后端返回的完整slideData结构
-          const slideData = JSON.parse(text)
-          
-          // 检查数据结构是否正确
-          if (slideData.slides && Array.isArray(slideData.slides)) {
-            console.log(`✅ 成功解析${slideData.slides.length}张幻灯片`)
-            
-            // 直接使用后端返回的幻灯片数据
-            const currentSlides = slideStore.slides
-            if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
-              // 如果当前是空幻灯片，直接替换所有幻灯片
-              slideStore.setSlides(slideData.slides)
-            } else {
-              // 如果已有幻灯片，则添加到现有幻灯片后面
-              const newSlides = [...currentSlides, ...slideData.slides]
-              slideStore.setSlides(newSlides)
-            }
-            
-            // 应用主题（如果后端返回了主题数据）
-            if (slideData.theme) {
-              slideStore.setTheme(slideData.theme)
-            }
-            
-            loading.value = false
-            mainStore.setAIPPTDialogState(false)
-            return
-          } else {
-            console.error('❌ 后端返回的数据格式不正确，缺少slides数组')
-            message.error('生成的PPT数据格式不正确')
-          }
-        }
-      }
-      catch (err) {
-        console.error('❌ 解析PPT数据失败:', err)
-        message.error('解析PPT数据失败，请重试')
-      }
+      buffer += chunk
+      
+      // 尝试从缓冲区中提取完整的JSON对象
+      await processBufferData(buffer)
 
       readStream()
     })
   }
+  
   readStream()
 }
+
+// 调用后端模板匹配接口
+const matchTemplate = async (aiData: any, templateId: string) => {
+  try {
+    console.log('🔍 调用模板匹配接口，原始AI数据:', aiData)
+    
+    // 深度复制并过滤掉 elements 中的 aiGeneratedContent 字段
+    const filteredAiData = JSON.parse(JSON.stringify(aiData))
+    
+    // 移除 aiGeneratedContent 字段（可能在根级别或elements中）
+    if (filteredAiData.aiGeneratedContent) {
+      delete filteredAiData.aiGeneratedContent
+    }
+
+    // 移除 aiGeneratedContent 字段（可能在根级别或elements中）
+    if (filteredAiData.elements) {
+      delete filteredAiData.elements
+    }
+
+    
+    console.log('🔍 过滤后的AI数据:', filteredAiData)
+    
+    // 只传递过滤后的数据
+    const response = await api.matchTemplate(filteredAiData)
+    
+    const result = await response.json()
+    console.log('✅ 模板匹配成功:', result)
+    
+    // 如果匹配成功且有结果，返回最佳匹配的模板
+    if (result.success && result.data && result.data.length > 0) {
+      const bestMatch = result.data[0]
+      return {
+        templateId: bestMatch.template.templateId,
+        layout: bestMatch.template.layoutType,
+        elements: extractElementsFromTemplate(bestMatch.template),
+        matchScore: bestMatch.score,
+        template: bestMatch.template,
+        aiData: aiData // 保留原始AI数据
+      }
+    }
+    
+    // 返回默认模板
+    return getDefaultTemplate()
+  } catch (error) {
+    console.error('❌ 模板匹配失败:', error)
+    return getDefaultTemplate()
+  }
+}
+
+// 从AI数据中提取布局类型
+const getLayoutTypeFromAIData = (aiData: any): string => {
+  if (aiData.items && Array.isArray(aiData.items)) {
+    if (aiData.items.length > 4) return 'grid'
+    if (aiData.items.length > 1) return 'list'
+  }
+  if (aiData.title && aiData.content) return 'title-content'
+  return 'standard'
+}
+
+// 从AI数据中提取元素需求
+const getElementRequirementsFromAIData = (aiData: any) => {
+  const requirements = []
+  
+  if (aiData.title) {
+    requirements.push({ type: 'title', count: 1 })
+  }
+  
+  if (aiData.content) {
+    requirements.push({ type: 'content', count: 1 })
+  }
+  
+  if (aiData.items && Array.isArray(aiData.items)) {
+    requirements.push({ type: 'item', count: aiData.items.length })
+  }
+  
+  return requirements
+}
+
+// 从AI数据中提取标签
+const getTagsFromAIData = (aiData: any) => {
+  const tags = []
+  
+  if (courseType.value) {
+    tags.push(courseType.value)
+  }
+  
+  if (style.value) {
+    tags.push(style.value)
+  }
+  
+  // 根据内容添加标签
+  const content = (aiData.title || '') + ' ' + (aiData.content || '')
+  if (content.includes('字母')) tags.push('字母教学')
+  if (content.includes('单词')) tags.push('单词教学')
+  if (content.includes('发音')) tags.push('发音练习')
+  if (content.includes('游戏')) tags.push('互动游戏')
+  
+  return tags
+}
+
+// 从模板中提取元素信息
+const extractElementsFromTemplate = (template: any) => {
+  const elements = ['title', 'content']
+  
+  if (template.contentStructure) {
+    if (template.contentStructure.hasItemList) elements.push('item')
+    if (template.contentStructure.hasImages) elements.push('image')
+    if (template.contentStructure.hasInteractiveElements) elements.push('interactive')
+  }
+  
+  return elements
+}
+
+// 获取默认模板
+const getDefaultTemplate = () => {
+  return {
+    templateId: 'default',
+    layout: 'standard',
+    elements: ['title', 'content'],
+    matchScore: 0
+  }
+}
+
 </script>
 
 <style lang="scss" scoped>

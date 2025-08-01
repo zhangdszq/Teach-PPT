@@ -30,7 +30,15 @@ interface AIImagePayload {
   model?: string
 }
 
-export default {
+interface TemplateMatchPayload {
+  data: any
+  templateId: string
+  courseType?: string
+  grade: string
+  style: string
+}
+
+const api = {
   getMockData(filename: string): Promise<any> {
     return axios.get(`./mocks/${filename}.json`)
   },
@@ -137,4 +145,25 @@ export default {
       }),
     })
   },
+
+  // 模板匹配接口
+  matchTemplate(searchCriteria: any): Promise<any> {
+    return fetch(`${SERVER_URL}/api/template/match`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(searchCriteria),
+    })
+  },
 }
+
+// 导出 SERVER_URL 供其他组件使用
+Object.defineProperty(api, 'SERVER_URL', {
+  value: SERVER_URL,
+  writable: false,
+  enumerable: true,
+  configurable: false
+})
+
+export default api
