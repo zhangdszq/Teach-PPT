@@ -2,7 +2,7 @@
   <div class="outline-editor">
     <div class="item" 
       :class="[{ 'title': item.title }, `lv-${item.lv}`]"
-      v-for="item in data"
+      v-for="(item, index) in data"
       :key="item.id"
       :data-lv="item.lv"
       :data-id="item.id"
@@ -18,13 +18,15 @@
       />
       <div class="text" @click="handleFocus(item.id)" v-else>{{ item.content }}</div>
 
-      <div class="flag"></div>
+      <div class="flag" :class="{ 'page-flag': item.lv === 2 && item.title }">
+        <span v-if="item.lv === 2 && item.title" class="page-number">第{{ getPageNumber(item.id) }}页</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, nextTick, onMounted, watch } from 'vue'
+import { ref, nextTick, onMounted, watch, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { ContextmenuItem } from '@/components/Contextmenu/types'
 import Input from './Input.vue'
@@ -34,6 +36,7 @@ interface OutlineItem {
   content: string
   lv: number
   title?: boolean
+  pageNumber?: number
 }
 
 const props = defineProps<{
@@ -46,6 +49,20 @@ const emit = defineEmits<{
 
 const data = ref<OutlineItem[]>([])
 const activeItemId = ref('')
+
+// 计算指定项目的页码
+const getPageNumber = (itemId: string) => {
+  let pageNumber = 1
+  for (const item of data.value) {
+    if (item.lv === 2 && item.title) {
+      if (item.id === itemId) {
+        return pageNumber
+      }
+      pageNumber++
+    }
+  }
+  return 1
+}
 
 watch(data, () => {
   let markdown = ''
@@ -65,20 +82,41 @@ watch(data, () => {
 })
 
 onMounted(() => {
-  const lines = props.value.split('\n')
+  // 统一处理不同类型的换行符
+  const normalizedValue = props.value.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const lines = normalizedValue.split('\n')
   const result: OutlineItem[] = []
-  let currentContextLevel = 4 // 当前上下文层级
+  let currentTitleLevel = 0 // 当前标题层级
+  let isAfterTitle = false // 是否在标题后面
 
-  for (const line of lines) {
-    if (!line.trim()) continue
+  console.log('🔍 OutlineEditor解析Markdown:', {
+    原始内容: props.value,
+    行数: lines.length,
+    前5行: lines.slice(0, 5)
+  })
 
-    const headerMatch = line.match(/^(#+)\s*(.*)/)
-    const listMatch = line.match(/^(\s*)-\s*(.*)/)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmedLine = line.trim()
+    
+    console.log(`🔍 解析第${i+1}行: "${line}" (trimmed: "${trimmedLine}")`)
+    
+    if (!trimmedLine) {
+      console.log(`⚪ 第${i+1}行为空行，跳过`)
+      continue
+    }
+
+    const headerMatch = trimmedLine.match(/^(#+)\s*(.*)/)
+    const listMatch = trimmedLine.match(/^(\s*)-\s*(.*)/)
 
     if (headerMatch) {
       const lv = headerMatch[1].length
-      const content = headerMatch[2]
-      currentContextLevel = lv + 1 // 更新上下文层级，标题的下一级
+      const content = headerMatch[2].trim()
+      currentTitleLevel = lv
+      isAfterTitle = true
+      
+      console.log(`✅ 识别为标题: 层级${lv}, 内容"${content}"`)
+      
       result.push({
         id: nanoid(),
         content,
@@ -86,27 +124,59 @@ onMounted(() => {
         lv,
       })
     }
-    else if (listMatch) {
+    else if (listMatch && isAfterTitle) {
       const indentSpaces = listMatch[1].length
-      const content = listMatch[2]
-      // 根据缩进空格数计算额外的缩进层级
+      const content = listMatch[2].trim()
+      // 标题后面的列表项，层级为标题层级+1，再加上额外缩进
       const extraIndentLevel = Math.floor(indentSpaces / 4)
-      const lv = currentContextLevel + extraIndentLevel // 基于当前上下文层级加上额外缩进
+      const lv = currentTitleLevel + 1 + extraIndentLevel
+      
+      console.log(`✅ 识别为标题后列表项: 层级${lv}, 内容"${content}"`)
+      
       result.push({
         id: nanoid(),
         content,
         lv,
       })
     }
-    else {
-      // 普通文本行，保持当前上下文层级
+    else if (listMatch) {
+      // 普通列表项
+      const indentSpaces = listMatch[1].length
+      const content = listMatch[2].trim()
+      const extraIndentLevel = Math.floor(indentSpaces / 4)
+      const lv = 4 + extraIndentLevel
+      
+      console.log(`✅ 识别为普通列表项: 层级${lv}, 内容"${content}"`)
+      
       result.push({
         id: nanoid(),
-        content: line.trim(),
-        lv: currentContextLevel
+        content,
+        lv,
       })
+      isAfterTitle = false
+    }
+    else if (trimmedLine) {
+      // 普通文本行
+      const content = trimmedLine
+      
+      console.log(`✅ 识别为普通文本: 层级4, 内容"${content}"`)
+      
+      result.push({
+        id: nanoid(),
+        content,
+        lv: 4
+      })
+      isAfterTitle = false
     }
   }
+  
+  console.log('🎯 OutlineEditor解析结果:', {
+    总项目数: result.length,
+    标题数量: result.filter(item => item.title).length,
+    列表项数量: result.filter(item => !item.title).length,
+    详细结果: result
+  })
+  
   data.value = result
 })
 
@@ -362,20 +432,42 @@ const contextmenus = (el: HTMLElement): ContextmenuItem[] => {
       font-weight: 400;
     }
   }
-  .item.lv-1 .flag::after {
+  .item.lv-1.title .flag::after {
     content: '主题';
   }
-  .item.lv-2 .flag::after {
-    content: '章';
+  .flag.page-flag {
+    .page-number {
+      width: 60px;
+      height: 22px;
+      padding: 0 4px;
+      border-radius: 2px;
+      background-color: #fff;
+      border: 1px solid $themeColor;
+      color: $themeColor;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 400;
+      z-index: 2;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+    
+    &::after {
+      display: none; // 隐藏默认的::after伪元素
+    }
   }
-  .item.lv-3 .flag::after {
+  .item.lv-3.title .flag::after {
     content: '节';
   }
   .item.lv-4 .flag::after,
   .item.lv-5 .flag::after,
   .item.lv-6 .flag::after,
   .item.lv-7 .flag::after,
-  .item.lv-8 .flag::after {
+  .item.lv-8 .flag::after,
+  .item:not(.title) .flag::after {
     opacity: 0;
   }
 }

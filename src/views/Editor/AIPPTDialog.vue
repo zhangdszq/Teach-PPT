@@ -3,7 +3,7 @@
     <div class="header">
       <span class="title">AI英语教学PPT</span>
       <span class="subtite" v-if="step === 'template'">从下方挑选适合的英语教学模板，开始生成课件</span>
-      <span class="subtite" v-else-if="step === 'outline'">确认下方英语课程大纲（点击编辑内容，右键添加/删除教学环节），开始选择模板</span>
+      <span class="subtite" v-else-if="step === 'outline'">确认下方英语课程内容（点击编辑内容，右键添加/删除教学环节），开始选择模板</span>
       <span class="subtite" v-else>在下方输入您的英语教学主题，如字母学习、单词教学、语法练习、口语训练等</span>
     </div>
     
