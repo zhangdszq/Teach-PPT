@@ -731,6 +731,8 @@ export type SlideType = 'cover' | 'contents' | 'transition' | 'content' | 'end'
  * turningMode?: 翻页方式
  * 
  * slideType?: 页面类型
+ * 
+ * aiData?: AI生成的原始数据
  */
 export interface Slide {
   id: string
@@ -742,6 +744,7 @@ export interface Slide {
   turningMode?: TurningMode
   sectionTag?: SectionTag
   type?: SlideType
+  aiData?: any
 }
 
 /**

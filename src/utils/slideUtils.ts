@@ -32,33 +32,74 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
         type: 'text',
         id: `title_${Date.now()}`,
         left: 100,
-        top: 100,
+        top: 50,
         width: 760,
         height: 80,
+        rotate: 0,
         content: `<p style="text-align: center; font-size: 36px; font-weight: bold; color: #2563eb;">${aiData.title}</p>`,
         defaultFontName: '微软雅黑',
         defaultColor: '#2563eb'
       })
     }
     
-    // 添加内容元素
-    if (aiData.content) {
+    // 处理组件数据 - 每个word、sentence、imageDescription作为独立组件
+    if (aiData.components && Array.isArray(aiData.components)) {
+      let currentTop = aiData.title ? 150 : 100
+      let columnIndex = 0
+      const maxColumns = 2 // 最多两列显示
+      const columnWidth = 360
+      const columnSpacing = 40
+      
+      aiData.components.forEach((component: any, index: number) => {
+        const isLeftColumn = columnIndex % maxColumns === 0
+        const left = isLeftColumn ? 100 : (100 + columnWidth + columnSpacing)
+        
+        // 根据组件类型创建不同样式的元素
+        console.log(`🔧 创建组件: ${component.type}, ID: ${component.id}, 内容:`, component)
+        
+        if (component.type === 'word') {
+          const wordElement = createWordElement(component, left, currentTop, columnWidth)
+          elements.push(wordElement)
+          console.log('✅ 创建单词组件:', wordElement.id)
+        } else if (component.type === 'sentence') {
+          const sentenceElement = createSentenceElement(component, left, currentTop, columnWidth)
+          elements.push(sentenceElement)
+          console.log('✅ 创建句子组件:', sentenceElement.id)
+        } else if (component.type === 'image') {
+          const imageElement = createImageDescriptionElement(component, left, currentTop, columnWidth)
+          elements.push(imageElement)
+          console.log('✅ 创建图像描述组件:', imageElement.id)
+        } else {
+          console.warn('⚠️ 未知组件类型:', component.type)
+        }
+        
+        // 更新位置
+        columnIndex++
+        if (columnIndex % maxColumns === 0) {
+          currentTop += 120 // 换行
+        }
+      })
+    }
+    
+    // 如果没有组件数据，使用传统的content处理方式
+    else if (aiData.content) {
       elements.push({
         type: 'text',
         id: `content_${Date.now()}`,
         left: 100,
-        top: aiData.title ? 200 : 150,
+        top: aiData.title ? 150 : 100,
         width: 760,
         height: 300,
+        rotate: 0,
         content: `<p style="font-size: 18px; line-height: 1.6; color: #374151;">${aiData.content}</p>`,
         defaultFontName: '微软雅黑',
         defaultColor: '#374151'
       })
     }
     
-    // 添加列表项元素
+    // 添加列表项元素（保持兼容性）
     if (aiData.items && Array.isArray(aiData.items)) {
-      let itemTop = aiData.title && aiData.content ? 520 : (aiData.title ? 300 : 200)
+      const itemTop = elements.length > 0 ? 400 : 200
       
       aiData.items.forEach((item: any, index: number) => {
         elements.push({
@@ -68,6 +109,7 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
           top: itemTop + (index * 50),
           width: 720,
           height: 40,
+          rotate: 0,
           content: `<p style="font-size: 16px; color: #4b5563;">• ${typeof item === 'string' ? item : item.text || item.content || ''}</p>`,
           defaultFontName: '微软雅黑',
           defaultColor: '#4b5563'
@@ -89,6 +131,85 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
   } catch (error) {
     console.error('❌ 创建幻灯片失败:', error)
     return slide // 返回空白幻灯片
+  }
+}
+
+/**
+ * 创建单词组件元素
+ */
+const createWordElement = (component: any, left: number, top: number, width: number) => {
+  const wordText = component.word || component.content || ''
+  const pronunciation = component.pronunciation ? ` [${component.pronunciation}]` : ''
+  const meaning = component.meaning ? `<br><span style="color: #6b7280; font-size: 14px;">${component.meaning}</span>` : ''
+  
+  return {
+    type: 'text',
+    id: component.id || `word_${Date.now()}`,
+    left,
+    top,
+    width,
+    height: 100,
+    rotate: 0,
+    content: `<div style="padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background: #eff6ff;">
+      <p style="font-size: 20px; font-weight: bold; color: #1d4ed8; margin: 0;">
+        ${wordText}${pronunciation}
+      </p>
+      ${meaning}
+    </div>`,
+    defaultFontName: '微软雅黑',
+    defaultColor: '#1d4ed8'
+  }
+}
+
+/**
+ * 创建句子组件元素
+ */
+const createSentenceElement = (component: any, left: number, top: number, width: number) => {
+  const sentence = component.sentence || component.content || ''
+  const translation = component.translation ? `<br><span style="color: #6b7280; font-size: 14px;">${component.translation}</span>` : ''
+  
+  return {
+    type: 'text',
+    id: component.id || `sentence_${Date.now()}`,
+    left,
+    top,
+    width,
+    height: 100,
+    rotate: 0,
+    content: `<div style="padding: 15px; border: 2px solid #10b981; border-radius: 8px; background: #ecfdf5;">
+      <p style="font-size: 16px; color: #047857; margin: 0; line-height: 1.4;">
+        ${sentence}
+      </p>
+      ${translation}
+    </div>`,
+    defaultFontName: '微软雅黑',
+    defaultColor: '#047857'
+  }
+}
+
+/**
+ * 创建图片描述组件元素
+ */
+const createImageDescriptionElement = (component: any, left: number, top: number, width: number) => {
+  const description = component.description || component.content || ''
+  const purpose = component.purpose ? `<br><span style="color: #6b7280; font-size: 12px;">用途：${component.purpose}</span>` : ''
+  
+  return {
+    type: 'text',
+    id: component.id || `image_${Date.now()}`,
+    left,
+    top,
+    width,
+    height: 100,
+    rotate: 0,
+    content: `<div style="padding: 15px; border: 2px solid #f59e0b; border-radius: 8px; background: #fffbeb;">
+      <p style="font-size: 14px; color: #d97706; margin: 0; line-height: 1.4;">
+        📷 ${description}
+      </p>
+      ${purpose}
+    </div>`,
+    defaultFontName: '微软雅黑',
+    defaultColor: '#d97706'
   }
 }
 

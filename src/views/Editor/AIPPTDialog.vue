@@ -269,19 +269,28 @@ const createPPT = async () => {
           const aiData = JSON.parse(trimmedPageData)
           
           if (aiData && typeof aiData === 'object') {
-            console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
-            
-            // 创建一页空白PPT
-            const blankSlide = createBlankSlide()
-            console.log('✅ 创建空白PPT页面，ID:', blankSlide.id)
-            
-            // 调用后端模板匹配接口，完整传递AI返回的内容
-            const matchedTemplate = await matchTemplate(aiData, selectedTemplate.value)
-            console.log('🎨 模板匹配完成:', matchedTemplate)
-            
-            // 使用工具函数在空白PPT上绘制内容
-            const finalSlide = createSlideFromAIData(aiData, matchedTemplate, blankSlide.id)
-            console.log('🎨 内容绘制完成，最终页面ID:', finalSlide.id)
+          console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
+          
+          // 创建一页空白PPT
+          const blankSlide = createBlankSlide()
+          console.log('✅ 创建空白PPT页面，ID:', blankSlide.id)
+          
+          // 处理AI数据，使用words、sentences、imageDescriptions替代content
+          const processedAIData = processAIDataForDisplay(aiData)
+          console.log('🔄 数据处理完成，组件数量:', processedAIData.components?.length || 0)
+          console.log('🔍 处理后的组件详情:', processedAIData.components)
+          
+          // 调用后端模板匹配接口，完整传递AI返回的内容
+          const matchedTemplate = await matchTemplate(aiData, selectedTemplate.value)
+          console.log('🎨 模板匹配完成:', matchedTemplate)
+          
+          // 使用工具函数在空白PPT上绘制内容
+          const finalSlide = createSlideFromAIData(processedAIData, matchedTemplate, blankSlide.id)
+          
+          // 保存AI数据到幻灯片中
+          finalSlide.aiData = aiData
+          console.log('🎨 内容绘制完成，最终页面ID:', finalSlide.id)
+          console.log('🎨 最终幻灯片元素数量:', finalSlide.elements.length)
             
             // 添加到幻灯片集合
             const currentSlides = slideStore.slides
@@ -340,24 +349,8 @@ const matchTemplate = async (aiData: any, templateId: string) => {
   try {
     console.log('🔍 调用模板匹配接口，原始AI数据:', aiData)
     
-    // 深度复制并过滤掉 elements 中的 aiGeneratedContent 字段
-    const filteredAiData = JSON.parse(JSON.stringify(aiData))
-    
-    // 移除 aiGeneratedContent 字段（可能在根级别或elements中）
-    if (filteredAiData.aiGeneratedContent) {
-      delete filteredAiData.aiGeneratedContent
-    }
-
-    // 移除 aiGeneratedContent 字段（可能在根级别或elements中）
-    if (filteredAiData.elements) {
-      delete filteredAiData.elements
-    }
-
-    
-    console.log('🔍 过滤后的AI数据:', filteredAiData)
-    
-    // 只传递过滤后的数据
-    const response = await api.matchTemplate(filteredAiData)
+    const pptSlideDdata = JSON.parse(JSON.stringify(aiData))
+    const response = await api.matchTemplate(pptSlideDdata)
     
     const result = await response.json()
     console.log('✅ 模板匹配成功:', result)
@@ -445,6 +438,181 @@ const extractElementsFromTemplate = (template: any) => {
   }
   
   return elements
+}
+
+// 处理AI数据，将words、sentences、imageDescriptions转换为独立的PPT组件
+const processAIDataForDisplay = (aiData: any) => {
+  const processedData = { ...aiData }
+  
+  console.log('🔍 开始处理AI数据:', aiData)
+  console.log('🔍 检查顶级字段存在性:', {
+    hasWords: !!aiData.words,
+    hasSentences: !!aiData.sentences,
+    hasImageDescriptions: !!aiData.imageDescriptions,
+    hasMetadata: !!aiData.metadata,
+    hasContent: !!aiData.content
+  })
+  
+  // 从metadata字段中提取数据
+  let wordsData = aiData.words
+  let sentencesData = aiData.sentences
+  let imageDescriptionsData = aiData.imageDescriptions
+  
+  // 如果顶级没有这些字段，尝试从metadata中获取
+  if (aiData.metadata && typeof aiData.metadata === 'object') {
+    console.log('🔍 检查metadata字段内容:', aiData.metadata)
+    console.log('🔍 metadata字段存在性:', {
+      hasWords: !!aiData.metadata.words,
+      wordsLength: aiData.metadata.words?.length || 0,
+      hasSentences: !!aiData.metadata.sentences,
+      sentencesLength: aiData.metadata.sentences?.length || 0,
+      hasImageDescriptions: !!aiData.metadata.imageDescriptions,
+      imageDescriptionsLength: aiData.metadata.imageDescriptions?.length || 0
+    })
+    
+    wordsData = wordsData || aiData.metadata.words
+    sentencesData = sentencesData || aiData.metadata.sentences
+    imageDescriptionsData = imageDescriptionsData || aiData.metadata.imageDescriptions
+  }
+  
+  // 创建组件数组，每个item都是独立的组件
+  const components = []
+  
+  // 处理words数组，每个单词作为独立组件
+  if (wordsData && Array.isArray(wordsData) && wordsData.length > 0) {
+    console.log('✅ 处理words数组，数量:', wordsData.length)
+    wordsData.forEach((word: any, index: number) => {
+      if (typeof word === 'string') {
+        components.push({
+          type: 'word',
+          id: `word_${index}`,
+          content: word,
+          category: 'words'
+        })
+      } else if (word && (word.word || word.content)) {
+        components.push({
+          type: 'word',
+          id: `word_${index}`,
+          word: word.word || word.content,
+          pronunciation: word.pronunciation || '',
+          meaning: word.meaning || '',
+          content: `${word.word || word.content}${word.pronunciation ? ` [${word.pronunciation}]` : ''}${word.meaning ? ` - ${word.meaning}` : ''}`,
+          category: 'words'
+        })
+      }
+    })
+  }
+  
+  // 处理sentences数组，每个句子作为独立组件
+  if (sentencesData && Array.isArray(sentencesData) && sentencesData.length > 0) {
+    console.log('✅ 处理sentences数组，数量:', sentencesData.length)
+    sentencesData.forEach((sentence: any, index: number) => {
+      if (typeof sentence === 'string') {
+        components.push({
+          type: 'sentence',
+          id: `sentence_${index}`,
+          content: sentence,
+          category: 'sentences'
+        })
+      } else if (sentence && (sentence.sentence || sentence.content)) {
+        components.push({
+          type: 'sentence',
+          id: `sentence_${index}`,
+          sentence: sentence.sentence || sentence.content,
+          translation: sentence.translation || '',
+          content: `${sentence.sentence || sentence.content}${sentence.translation ? ` (${sentence.translation})` : ''}`,
+          category: 'sentences'
+        })
+      }
+    })
+  }
+  
+  // 处理imageDescriptions数组，每个描述作为独立组件
+  if (imageDescriptionsData && Array.isArray(imageDescriptionsData) && imageDescriptionsData.length > 0) {
+    console.log('✅ 处理imageDescriptions数组，数量:', imageDescriptionsData.length)
+    imageDescriptionsData.forEach((desc: any, index: number) => {
+      if (typeof desc === 'string') {
+        components.push({
+          type: 'image',
+          id: `image_${index}`,
+          content: desc,
+          category: 'imageDescriptions'
+        })
+      } else if (desc && (desc.description || desc.content)) {
+        components.push({
+          type: 'image',
+          id: `image_${index}`,
+          description: desc.description || desc.content,
+          purpose: desc.purpose || '',
+          content: `${desc.description || desc.content}${desc.purpose ? ` (用途：${desc.purpose})` : ''}`,
+          category: 'imageDescriptions'
+        })
+      }
+    })
+  }
+  
+  // 如果没有找到这三个字段，尝试从其他可能的字段中提取数据
+  if (components.length === 0) {
+    console.log('⚠️ 未找到words/sentences/imageDescriptions字段，尝试从其他字段提取数据')
+    
+    // 检查是否有items字段
+    if (aiData.items && Array.isArray(aiData.items)) {
+      console.log('🔍 发现items字段，数量:', aiData.items.length)
+      aiData.items.forEach((item: any, index: number) => {
+        const itemText = typeof item === 'string' ? item : (item.text || item.content || '')
+        if (itemText) {
+          // 根据内容判断类型
+          let type = 'word'
+          if (itemText.includes('句子') || itemText.includes('对话') || itemText.length > 20) {
+            type = 'sentence'
+          } else if (itemText.includes('图片') || itemText.includes('图像') || itemText.includes('描述')) {
+            type = 'image'
+          }
+          
+          components.push({
+            type,
+            id: `item_${index}`,
+            content: itemText,
+            category: 'items'
+          })
+        }
+      })
+    }
+    
+    // 如果还是没有组件，从content字段创建一个通用组件
+    if (components.length === 0 && aiData.content) {
+      console.log('🔍 从content字段创建通用组件')
+      components.push({
+        type: 'word',
+        id: 'content_0',
+        content: aiData.content,
+        category: 'content'
+      })
+    }
+  }
+  
+  // 将组件数组添加到处理后的数据中
+  processedData.components = components
+  
+  // 如果没有组件但有原始content，保留原始content
+  if (components.length === 0 && aiData.content) {
+    processedData.content = aiData.content
+  } else {
+    // 清空原始content，使用组件数据
+    processedData.content = ''
+  }
+  
+  console.log('📝 AI数据处理完成:', {
+    原始数据字段: Object.keys(aiData),
+    组件数量: components.length,
+    组件类型分布: components.reduce((acc, comp) => {
+      acc[comp.type] = (acc[comp.type] || 0) + 1
+      return acc
+    }, {} as Record<string, number>),
+    组件列表: components
+  })
+  
+  return processedData
 }
 
 // 获取默认模板

@@ -104,11 +104,23 @@
       :visible="saveTemplateDialogVisible"
       @close="saveTemplateDialogVisible = false"
     />
+
+    <Modal
+      v-model:visible="contentDataDialogVisible" 
+      :width="800"
+      title="查看内容数据"
+    >
+      <div class="content-data-dialog">
+        <div class="data-content">
+          <pre>{{ formattedContentData }}</pre>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, onUnmounted, provide, ref, watch, watchEffect } from 'vue'
+import { nextTick, onMounted, onUnmounted, provide, ref, watch, watchEffect, computed } from 'vue'
 import { throttle } from 'lodash'
 import { storeToRefs } from 'pinia'
 import { useMainStore, useSlidesStore, useKeyboardStore } from '@/store'
@@ -170,7 +182,8 @@ const {
   textFormatPainter,
   showMarkupPanel,
 } = storeToRefs(mainStore)
-const { currentSlide } = storeToRefs(useSlidesStore())
+const slidesStore = useSlidesStore()
+const { currentSlide, slideIndex, slides } = storeToRefs(slidesStore)
 const { ctrlKeyState, spaceKeyState } = storeToRefs(useKeyboardStore())
 
 const viewportRef = ref<HTMLElement>()
@@ -203,6 +216,35 @@ const openMarkupPanel = () => {
   mainStore.setMarkupPanelState(true)
 }
 
+// 查看内容数据对话框相关
+const contentDataDialogVisible = ref(false)
+const currentSlideAIData = ref(null)
+
+const formattedContentData = computed(() => {
+  if (!currentSlideAIData.value) return '暂无数据'
+  return JSON.stringify(currentSlideAIData.value, null, 2)
+})
+
+const openContentDataDialog = () => {
+  const currentSlide = slides.value[slideIndex.value]
+  if (!currentSlide) {
+    message.warning('当前没有选中的幻灯片')
+    return
+  }
+  
+  if (!currentSlide.aiData) {
+    message.warning('当前幻灯片没有AI生成的数据')
+    return
+  }
+  
+  currentSlideAIData.value = currentSlide.aiData
+  contentDataDialogVisible.value = true
+}
+
+const closeContentDataDialog = () => {
+  contentDataDialogVisible.value = false
+  currentSlideAIData.value = null
+}
 
 watch(handleElementId, () => {
   mainStore.setActiveGroupElementId('')
@@ -248,8 +290,12 @@ onMounted(() => {
 
 onUnmounted(() => {
   // 清理事件监听器
-  emitter.off(EmitterEvents.OPEN_AI_IMAGE_DIALOG, openAIImageDialog)
-  if (textFormatPainter.value) mainStore.setTextFormatPainter(null)
+  try {
+    emitter.off(EmitterEvents.OPEN_AI_IMAGE_DIALOG, openAIImageDialog)
+    if (textFormatPainter.value) mainStore.setTextFormatPainter(null)
+  } catch (error) {
+    console.warn('清理事件监听器时出错:', error)
+  }
 })
 
 // 点击画布的空白区域：清空焦点元素、设置画布焦点、清除文字选区、清空格式刷状态
@@ -280,7 +326,6 @@ const handleDblClick = (e: MouseEvent) => {
     height: 0,
   })
 }
-
 
 // 移除画布编辑区域焦点
 const removeEditorAreaFocus = () => {
@@ -399,6 +444,12 @@ const contextmenus = (): ContextmenuItem[] => {
   }
 
   baseMenus.push({
+    text: '查看内容数据',
+    subText: '',
+    handler: openContentDataDialog,
+  })
+  
+  baseMenus.push({
     text: '幻灯片放映',
     subText: 'F5',
     handler: enterScreeningFromStart,
@@ -431,5 +482,25 @@ provide(injectKeySlideScale, canvasScale)
   top: 0;
   left: 0;
   transform-origin: 0 0;
+}
+
+.content-data-dialog {
+  .data-content {
+    max-height: 500px;
+    overflow: auto;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    padding: 16px;
+    
+    pre {
+      margin: 0;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #333;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  }
 }
 </style>
