@@ -241,6 +241,54 @@ const openContentDataDialog = () => {
   contentDataDialogVisible.value = true
 }
 
+// 自动匹配模板功能
+const matchTemplate = async () => {
+  const currentSlide = slides.value[slideIndex.value]
+  if (!currentSlide) {
+    message.warning('当前没有选中的幻灯片')
+    return
+  }
+
+  try {
+    message.info('正在匹配模板...')
+    
+    // 调用后端模板匹配接口
+    const response = await api.matchTemplate( currentSlide.aiData)
+    const data = await response.json()
+    
+    if (data.status === 'success' && data.data) {
+      const matchResults = data.data
+      if (matchResults.length > 0) {
+        message.success(`找到 ${matchResults.length} 个匹配的模板`)
+        console.log('模板匹配结果:', matchResults)
+        // 这里可以添加显示匹配结果的逻辑，比如打开一个对话框展示匹配的模板
+      } else {
+        message.warning('未找到匹配的模板')
+      }
+    } else {
+      message.error(data.message || '模板匹配失败')
+    }
+  } catch (error) {
+    console.error('模板匹配错误:', error)
+    message.error('模板匹配失败，请稍后重试')
+  }
+}
+
+// 从元素列表中提取元素需求
+const extractElementRequirements = (elements: PPTElement[]) => {
+  const elementCounts: { [key: string]: number } = {}
+  
+  elements.forEach(element => {
+    const type = element.type
+    elementCounts[type] = (elementCounts[type] || 0) + 1
+  })
+  
+  return Object.entries(elementCounts).map(([type, count]) => ({
+    type,
+    count
+  }))
+}
+
 const closeContentDataDialog = () => {
   contentDataDialogVisible.value = false
   currentSlideAIData.value = null
@@ -447,6 +495,12 @@ const contextmenus = (): ContextmenuItem[] => {
     text: '查看内容数据',
     subText: '',
     handler: openContentDataDialog,
+  })
+  
+  baseMenus.push({
+    text: '自动匹配模板',
+    subText: '',
+    handler: matchTemplate,
   })
   
   baseMenus.push({
