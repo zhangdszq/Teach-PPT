@@ -46,9 +46,15 @@
           <IconDown class="arrow" />
         </Popover>
       </div>
-      <FileInput @change="files => insertImageElement(files)">
+      <Popover trigger="click" v-model:value="imageInputVisible" :offset="10">
+        <template #content>
+          <ImageInput 
+            @close="imageInputVisible = false"
+            @insertImage="src => { createImageElement(src); imageInputVisible = false }"
+          />
+        </template>
         <IconPicture class="handler-item" v-tooltip="'插入图片'" />
-      </FileInput>
+      </Popover>
       <Popover trigger="click" v-model:value="linePoolVisible" :offset="10">
         <template #content>
           <LinePool @select="line => drawLine(line)" />
@@ -114,7 +120,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore, useSnapshotStore } from '@/store'
 import { getImageDataURL } from '@/utils/image'
@@ -129,6 +135,7 @@ import LinePool from './LinePool.vue'
 import ChartPool from './ChartPool.vue'
 import TableGenerator from './TableGenerator.vue'
 import MediaInput from './MediaInput.vue'
+import ImageInput from './ImageInput.vue'
 import LaTeXEditor from '@/components/LaTeXEditor/index.vue'
 import FileInput from '@/components/FileInput.vue'
 import Modal from '@/components/Modal.vue'
@@ -166,21 +173,51 @@ const {
   createAudioElement,
 } = useCreateElement()
 
-const insertImageElement = (files: FileList) => {
-  const imageFile = files[0]
-  if (!imageFile) return
-  getImageDataURL(imageFile).then(dataURL => createImageElement(dataURL))
-}
-
 const shapePoolVisible = ref(false)
 const linePoolVisible = ref(false)
 const chartPoolVisible = ref(false)
 const tableGeneratorVisible = ref(false)
 const mediaInputVisible = ref(false)
+const imageInputVisible = ref(false)
 const latexEditorVisible = ref(false)
 const textTypeSelectVisible = ref(false)
 const shapeMenuVisible = ref(false)
 const moreVisible = ref(false)
+
+const handleDragEnter = (e: DragEvent) => {
+  if (e.dataTransfer?.types.includes('Files')) e.preventDefault()
+}
+
+const handleDragOver = (e: DragEvent) => {
+  if (e.dataTransfer?.types.includes('Files')) e.preventDefault()
+}
+
+const handleDrop = async (e: DragEvent) => {
+  if (!e.dataTransfer?.types.includes('Files')) return
+
+  e.preventDefault()
+
+  const files = e.dataTransfer?.files
+  if (!files || !files.length) return
+
+  const imageFile = files[0]
+  if (!imageFile.type.startsWith('image/')) return
+  
+  const dataURL = await getImageDataURL(imageFile)
+  createImageElement(dataURL)
+}
+
+onMounted(() => {
+  window.addEventListener('dragenter', handleDragEnter)
+  window.addEventListener('dragover', handleDragOver)
+  window.addEventListener('drop', handleDrop)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('dragenter', handleDragEnter)
+  window.removeEventListener('dragover', handleDragOver)
+  window.removeEventListener('drop', handleDrop)
+})
 
 // 绘制文字范围
 const drawText = (vertical = false) => {
