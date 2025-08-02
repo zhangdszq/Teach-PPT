@@ -57,7 +57,21 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
         // 根据组件类型创建不同样式的元素
         console.log(`🔧 创建组件: ${component.type}, ID: ${component.id}, 内容:`, component)
         
-        if (component.type === 'word') {
+        if (component.type === 'subtitle') {
+          elements.push({
+            type: 'text',
+            id: `subtitle_${Date.now()}`,
+            left: 100,
+            top: 120,
+            width: 760,
+            height: 40,
+            rotate: 0,
+            content: `<p style="text-align: center; font-size: 24px; color: #555;">${component.content}</p>`,
+            defaultFontName: '微软雅黑',
+            defaultColor: '#555555'
+          })
+          console.log('✅ 创建副标题组件:', component.id)
+        } else if (component.type === 'word') {
           const wordElement = createWordElement(component, left, currentTop, columnWidth)
           elements.push(wordElement)
           console.log('✅ 创建单词组件:', wordElement.id)

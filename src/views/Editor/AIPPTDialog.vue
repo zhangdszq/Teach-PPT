@@ -17,7 +17,7 @@
       >
         <template #suffix>
           <span class="count">{{ keyword.length }} / 50</span>
-          <div class="submit" type="primary" @click="createOutline()"><IconSend class="icon" /> 生成课程内容</div>
+          <div class="submit" :class="{ 'disabled': isSubmitDisabled }" type="primary" @click="createOutline()"><IconSend class="icon" /> 生成课程内容</div>
         </template>
       </Input>
       <div class="recommends">
@@ -114,7 +114,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import api from '@/services'
 import useAIPPT from '@/hooks/useAIPPT'
@@ -149,6 +149,10 @@ const inputRef = ref<InstanceType<typeof Input>>()
 const step = ref<'setup' | 'outline' | 'template'>('setup')
 const model = ref('GLM-4-Flash')
 const templateSelectVisible = ref(false)
+
+const isSubmitDisabled = computed(() => {
+  return !keyword.value.trim() || !courseType.value || !grade.value
+})
 
 const courseTypeOptions = ref([
   '单词与句子',
@@ -190,7 +194,12 @@ const handleTemplateSelect = (template: any) => {
 }
 
 const createOutline = async () => {
-  if (!keyword.value) return message.error('请先输入英语教学主题')
+  if (isSubmitDisabled.value) {
+    if (!courseType.value) return message.error('请选择课程类型')
+    if (!grade.value) return message.error('请选择年级')
+    if (!keyword.value.trim()) return message.error('请输入英语教学主题')
+    return
+  }
 
   loading.value = true
   outlineCreating.value = true
@@ -477,6 +486,16 @@ const processAIDataForDisplay = (aiData: any) => {
   
   // 创建组件数组，每个item都是独立的组件
   const components = []
+
+  // 处理 subtitle
+  if (aiData.subtitle) {
+    components.push({
+      type: 'subtitle',
+      id: 'subtitle_0',
+      content: aiData.subtitle,
+      category: 'subtitle'
+    })
+  }
   
   // 处理words数组，每个单词作为独立组件
   if (wordsData && Array.isArray(wordsData) && wordsData.length > 0) {
@@ -729,6 +748,15 @@ const getDefaultTemplate = () => {
 
   &:hover {
     background-color: $themeHoverColor;
+  }
+
+  &.disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+
+    &:hover {
+      background-color: #ccc;
+    }
   }
 
   .icon {
