@@ -116,6 +116,7 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { courseTypeOptions as courseOptionsData } from '@/configs/course'
 import api from '@/services'
 import useAIPPT from '@/hooks/useAIPPT'
 import type { AIPPTSlide } from '@/types/AIPPT'
@@ -154,18 +155,7 @@ const isSubmitDisabled = computed(() => {
   return !keyword.value.trim() || !courseType.value || !grade.value
 })
 
-const courseTypeOptions = ref([
-  '单词与句子',
-  '自然拼读基础入门教学',
-  '英语单词卡片互动游戏',
-  '简单英语对话情景练习',
-  '英语字母书写训练课程',
-  '幼儿英语启蒙认知课',
-  '英语语音语调纠正练习',
-  '英语绘本故事阅读教学',
-  '英语课堂互动游戏设计',
-  '英语听力基础训练课程',
-])
+const courseTypeOptions = ref(courseOptionsData)
 
 onMounted(() => {
   setTimeout(() => {

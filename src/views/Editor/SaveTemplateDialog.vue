@@ -1,16 +1,16 @@
 <template>
   <Modal 
     v-model:visible="dialogVisible" 
-    :width="480"
+    :width="520"
     :closable="false"
   >
     <div class="save-template-dialog">
       <div class="header">
         <div class="title">保存为模板</div>
-        <div class="subtitle">将当前页面保存为模板，方便教研老师制作课件时使用</div>
+        <div class="subtitle">将当前页面保存为模板，方便其他老师快速复用</div>
       </div>
       
-      <div class="form">
+      <div class="form-content">
         <div class="form-item">
           <label class="label">模板名称 *</label>
           <input 
@@ -22,47 +22,55 @@
         </div>
         
         <div class="form-item">
+          <label class="label">模板类型 *</label>
+          <select v-model="templateForm.templateType" class="select">
+            <option disabled value="">请选择或使用AI智能提取</option>
+            <option v-for="type in templateTypeOptions" :key="type" :value="type">{{ type }}</option>
+          </select>
+        </div>
+        
+        <div class="form-item">
           <label class="label">模板描述</label>
           <textarea 
             v-model="templateForm.description"
             class="textarea"
-            placeholder="请描述模板的用途和特点，如：适用于英语单词教学，包含单词、音标、释义等元素"
+            placeholder="请描述模板的用途和特点"
             maxlength="200"
             rows="3"
           />
         </div>
         
         <div class="form-item">
-          <label class="label">适用学科</label>
-          <select v-model="templateForm.subject" class="select">
-            <option value="">请选择学科</option>
-            <option value="english">英语</option>
-            <option value="chinese">语文</option>
-            <option value="math">数学</option>
-            <option value="science">科学</option>
-            <option value="history">历史</option>
-            <option value="geography">地理</option>
-            <option value="other">其他</option>
+          <label class="label">课程类型</label>
+          <select v-model="templateForm.courseType" class="select">
+            <option value="">不指定课程类型</option>
+            <option v-for="course in courseTypeOptions" :key="course" :value="course">{{ course }}</option>
           </select>
         </div>
         
         <div class="form-item">
           <label class="label">适用年级</label>
           <div class="checkbox-group">
-            <label class="checkbox-item" v-for="grade in gradeOptions" :key="grade.value">
+            <label 
+              class="checkbox-item" 
+              v-for="grade in gradeOptions" 
+              :key="grade.value"
+              :class="{ 'checked': templateForm.grades.includes(grade.value) }"
+            >
               <input 
                 type="checkbox" 
                 :value="grade.value"
                 v-model="templateForm.grades"
+                class="checkbox-input"
               />
-              <span>{{ grade.label }}</span>
+              <span class="checkbox-label">{{ grade.label }}</span>
             </label>
           </div>
         </div>
         
         <div class="form-item">
           <label class="label">模板标签</label>
-          <div class="tag-input">
+          <div class="tag-input-wrapper">
             <div class="tags">
               <span 
                 v-for="(tag, index) in templateForm.tags" 
@@ -70,14 +78,14 @@
                 class="tag"
               >
                 {{ tag }}
-                <button @click="removeTag(index)" class="tag-remove">×</button>
+                <button @click="removeTag(index)" class="tag-remove">&times;</button>
               </span>
             </div>
             <input 
               v-model="newTag"
               @keyup.enter="addTag"
               class="tag-input-field"
-              placeholder="输入标签后按回车添加"
+              placeholder="输入后按回车添加(最多5个)"
               maxlength="10"
             />
           </div>
@@ -88,23 +96,22 @@
               @click="addSuggestedTag(suggestion)"
               class="tag-suggestion"
             >
-              {{ suggestion }}
+              + {{ suggestion }}
             </span>
           </div>
-          
-          <!-- AI 特征提取区域 -->
-          <div class="ai-extract-section">
-            <button 
-              @click="handleAIExtract" 
-              :disabled="aiExtracting"
-              class="btn btn-ai-extract"
-            >
-              <span class="ai-icon">🤖</span>
-              {{ aiExtracting ? 'AI分析中...' : 'AI智能提取特征' }}
-            </button>
-            <div class="ai-extract-tip">
-              使用AI分析当前页面，自动提取模板特征和标签
-            </div>
+        </div>
+
+        <div class="ai-extract-section">
+          <button 
+            @click="handleAIExtract" 
+            :disabled="aiExtracting"
+            class="btn-ai-extract"
+          >
+            <span class="ai-icon">✨</span>
+            {{ aiExtracting ? 'AI分析中...' : 'AI智能提取特征' }}
+          </button>
+          <div class="ai-extract-tip">
+            使用AI分析当前页面，自动填写模板名称、类型、标签等信息
           </div>
         </div>
       </div>
@@ -113,10 +120,10 @@
         <button @click="handleCancel" class="btn btn-cancel">取消</button>
         <button 
           @click="handleSave" 
-          :disabled="!templateForm.name.trim() || saving"
+          :disabled="!templateForm.name.trim() || !templateForm.templateType || saving"
           class="btn btn-primary"
         >
-          {{ saving ? '保存中...' : '保存模板' }}
+          {{ saving ? '保存中...' : '确认保存' }}
         </button>
       </div>
     </div>
@@ -129,6 +136,7 @@ import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 import message from '@/utils/message'
 import Modal from '@/components/Modal.vue'
+import { courseTypeOptions } from '@/configs/course'
 
 interface Props {
   visible: boolean
@@ -150,11 +158,22 @@ const aiExtractedFeatures = ref<any>(null) // 存储AI分析的完整数据
 // 表单数据
 const templateForm = reactive({
   name: '',
+  templateType: '',
   description: '',
-  subject: '',
+  courseType: '',
   grades: [] as string[],
   tags: [] as string[]
 })
+
+// 模板类型选项
+const templateTypeOptions = ref([
+  "自我介绍",
+  "学习目标",
+  "提问环节",
+  "正式学习",
+  "自由讨论",
+  "看图选择"
+])
 
 // 年级选项
 const gradeOptions = [
@@ -195,12 +214,25 @@ watch(dialogVisible, (newVal) => {
 // 重置表单
 const resetForm = () => {
   templateForm.name = ''
+  templateForm.templateType = ''
   templateForm.description = ''
-  templateForm.subject = ''
+  templateForm.courseType = ''
   templateForm.grades = []
   templateForm.tags = []
   newTag.value = ''
+  saving.value = false
+  aiExtracting.value = false
   aiExtractedFeatures.value = null // 重置AI数据
+  
+  // 恢复默认模板类型选项
+  templateTypeOptions.value = [
+    "自我介绍",
+    "学习目标",
+    "提问环节",
+    "正式学习",
+    "自由讨论",
+    "看图选择"
+  ]
 }
 
 // 添加标签
@@ -224,39 +256,41 @@ const removeTag = (index: number) => {
   templateForm.tags.splice(index, 1)
 }
 
-// 清理对象中的 base64 图片数据
+// 清理对象中的 base64 图片数据，并处理循环引用
 const cleanBase64Images = (obj: any): any => {
-  if (!obj) return obj
-  
-  // 如果是数组，递归处理每个元素
-  if (Array.isArray(obj)) {
-    return obj.map(item => cleanBase64Images(item))
-  }
-  
-  // 如果是对象，递归处理每个属性
-  if (typeof obj === 'object') {
-    const result = { ...obj }
-    
-    // 检查常见的图片属性名
+  const visited = new WeakSet()
+
+  const recurse = (current: any) => {
+    if (!current || typeof current !== 'object') {
+      return current
+    }
+
+    if (visited.has(current)) {
+      return '[Circular Reference]'
+    }
+    visited.add(current)
+
+    if (Array.isArray(current)) {
+      return current.map(item => recurse(item))
+    }
+
+    const result: { [key: string]: any } = {}
     const imageProps = ['src', 'url', 'image', 'backgroundImage', 'thumbnail']
-    
-    for (const key in result) {
-      // 如果是 base64 图片数据，清空它
-      if (imageProps.includes(key) && typeof result[key] === 'string' && result[key].startsWith('data:image')) {
-        console.log(`🧹 清理 base64 图片数据: ${key}`)
-        result[key] = '[图片数据已清理]'
-      } 
-      // 递归处理嵌套对象
-      else if (typeof result[key] === 'object' && result[key] !== null) {
-        result[key] = cleanBase64Images(result[key])
+
+    for (const key in current) {
+      if (Object.prototype.hasOwnProperty.call(current, key)) {
+        const value = current[key]
+        if (imageProps.includes(key) && typeof value === 'string' && value.startsWith('data:image')) {
+          result[key] = '[图片数据已清理]'
+        } else {
+          result[key] = recurse(value)
+        }
       }
     }
-    
     return result
   }
-  
-  // 其他类型直接返回
-  return obj
+
+  return recurse(obj)
 }
 
 // AI 特征提取
@@ -310,23 +344,26 @@ const handleAIExtract = async () => {
         templateForm.name = features.templateName
       }
       
+      // 自动填充模板类型
+      if (features.templateType) {
+        // 如果AI返回的类型不在现有选项中，则动态添加
+        if (!templateTypeOptions.value.includes(features.templateType)) {
+          templateTypeOptions.value.push(features.templateType)
+        }
+        templateForm.templateType = features.templateType
+      }
+      
       // 自动填充模板描述
       if (features.description && !templateForm.description.trim()) {
         templateForm.description = features.description
       }
       
-      // 自动填充学科信息
-      if (features.subject && !templateForm.subject) {
-        // 将中文学科名转换为对应的值
-        const subjectMap: Record<string, string> = {
-          '英语': 'english',
-          '语文': 'chinese', 
-          '数学': 'math',
-          '科学': 'science',
-          '历史': 'history',
-          '地理': 'geography'
+      // 自动填充课程类型信息
+      if (features.subject && !templateForm.courseType) {
+        // 检查AI返回的课程类型是否存在于选项中
+        if (courseTypeOptions.includes(features.subject)) {
+          templateForm.courseType = features.subject
         }
-        templateForm.subject = subjectMap[features.subject] || 'other'
       }
       
       // 处理年级信息
@@ -364,6 +401,7 @@ const handleAIExtract = async () => {
       // 显示成功消息，包含提取到的关键信息
       const extractedInfo = []
       if (features.templateName) extractedInfo.push(`模板名称: ${features.templateName}`)
+      if (features.templateType) extractedInfo.push(`模板类型: ${features.templateType}`)
       if (features.subject) extractedInfo.push(`学科: ${features.subject}`)
       if (features.tags && features.tags.length > 0) extractedInfo.push(`标签: ${features.tags.join(', ')}`)
       
@@ -621,7 +659,7 @@ const loadHtml2Canvas = (): Promise<void> => {
 }
 
 // 使用SVG + foreignObject进行截图
-const captureWithSVG = async (element: HTMLElement): Promise<string | null> => {
+const captureWithSVG = (element: HTMLElement): Promise<string | null> => {
   try {
     const rect = element.getBoundingClientRect()
     const width = rect.width
@@ -680,15 +718,21 @@ const handleCancel = () => {
 
 // 保存模板
 const handleSave = async () => {
-  if (!templateForm.name.trim()) {
-    message.error('请输入模板名称')
+  if (saving.value) return
+  
+  try {
+    if (!templateForm.name.trim() || !templateForm.templateType) {
+      message.error('请输入模板名称和选择模板类型')
+      return
+    }
+  } catch (err) {
+    message.error('请填写所有必填项')
     return
   }
-
+  
+  saving.value = true
+  
   try {
-    saving.value = true
-    
-    // 获取当前页面数据
     const slidesStore = useSlidesStore()
     const { currentSlide, theme, viewportRatio, viewportSize } = storeToRefs(slidesStore)
     
@@ -707,8 +751,9 @@ const handleSave = async () => {
       // 模板元数据
       metadata: {
         name: templateForm.name,
+        templateType: templateForm.templateType,
         description: templateForm.description,
-        subject: templateForm.subject,
+        courseType: templateForm.courseType,
         grades: templateForm.grades,
         tags: templateForm.tags,
         createdAt: new Date().toISOString(),
@@ -766,194 +811,218 @@ declare global {
 
 <style lang="scss" scoped>
 .save-template-dialog {
+  padding: 12px;
+  color: #333;
+
   .header {
+    text-align: center;
     margin-bottom: 24px;
     
     .title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1f2937;
-      margin-bottom: 8px;
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(270deg, #d897fd, #33bcfc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.2;
     }
     
     .subtitle {
       font-size: 14px;
-      color: #6b7280;
-      line-height: 1.5;
+      color: #888;
+      margin-top: 8px;
     }
   }
   
-  .form {
-    .form-item {
-      margin-bottom: 20px;
+  .form-content {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 4px 16px;
+    margin: 0 -16px;
+  }
+
+  .form-item {
+    margin-bottom: 18px;
+    
+    .label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #4a5568;
+      margin-bottom: 8px;
+    }
+    
+    .input, .textarea, .select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      background-color: #fdfdff;
+      transition: all 0.2s ease-in-out;
       
-      .label {
-        display: block;
-        font-size: 14px;
+      &:focus {
+        outline: none;
+        border-color: #33bcfc;
+        box-shadow: 0 0 0 2px rgba(51, 188, 252, 0.2);
+      }
+    }
+    
+    .textarea {
+      resize: vertical;
+      min-height: 70px;
+    }
+  }
+  
+  .checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    
+    .checkbox-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        border-color: #33bcfc;
+        color: #33bcfc;
+      }
+
+      &.checked {
+        border-color: #d897fd;
+        background-color: #faf5ff;
+        color: #9f7aea;
         font-weight: 500;
-        color: #374151;
-        margin-bottom: 8px;
+      }
+
+      .checkbox-input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+    }
+  }
+  
+  .tag-input-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #fdfdff;
+    transition: all 0.2s ease-in-out;
+
+    &:focus-within {
+      border-color: #33bcfc;
+      box-shadow: 0 0 0 2px rgba(51, 188, 252, 0.2);
+    }
+
+    .tags {
+      display: contents;
+    }
+
+    .tag {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background-color: #f0f5ff;
+      color: #2d68f4;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+
+      .tag-remove {
+        background: none;
+        border: none;
+        color: #2d68f4;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        opacity: 0.7;
+        &:hover { opacity: 1; }
+      }
+    }
+
+    .tag-input-field {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      min-width: 150px;
+      font-size: 14px;
+      height: 28px;
+    }
+  }
+
+  .tag-suggestions {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    
+    .tag-suggestion {
+      background: #f7fafc;
+      color: #718096;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      
+      &:hover {
+        background-color: #edf2f7;
+        color: #4a5568;
+        transform: translateY(-1px);
+      }
+    }
+  }
+  
+  .ai-extract-section {
+    margin-top: 24px;
+    
+    .btn-ai-extract {
+      width: 100%;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #868cff 0%, #4318ff 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
       }
       
-      .input, .textarea, .select {
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 14px;
-        transition: border-color 0.2s;
-        
-        &:focus {
-          outline: none;
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
       }
-      
-      .textarea {
-        resize: vertical;
-        min-height: 80px;
-      }
-      
-      .checkbox-group {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        
-        .checkbox-item {
-          display: flex;
-          align-items: center;
-          font-size: 14px;
-          cursor: pointer;
-          
-          input[type="checkbox"] {
-            margin-right: 6px;
-          }
-        }
-      }
-      
-      .tag-input {
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        padding: 8px;
-        min-height: 40px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        align-items: center;
-        
-        &:focus-within {
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        
-        .tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-        }
-        
-        .tag {
-          background: #eff6ff;
-          color: #1d4ed8;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          
-          .tag-remove {
-            background: none;
-            border: none;
-            color: #1d4ed8;
-            cursor: pointer;
-            font-size: 14px;
-            line-height: 1;
-            
-            &:hover {
-              color: #1e40af;
-            }
-          }
-        }
-        
-        .tag-input-field {
-          border: none;
-          outline: none;
-          flex: 1;
-          min-width: 120px;
-          font-size: 14px;
-        }
-      }
-      
-      .tag-suggestions {
-        margin-top: 8px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        
-        .tag-suggestion {
-          background: #f3f4f6;
-          color: #4b5563;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          cursor: pointer;
-          transition: background-color 0.2s;
-          
-          &:hover {
-            background: #e5e7eb;
-          }
-        }
-      }
-      
-      .ai-extract-section {
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid #e5e7eb;
-        
-        .btn-ai-extract {
-          width: 100%;
-          padding: 10px 16px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border: none;
-          border-radius: 8px;
-          color: white;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          
-          .ai-icon {
-            font-size: 16px;
-          }
-          
-          &:hover:not(:disabled) {
-            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-          }
-          
-          &:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-          }
-        }
-        
-        .ai-extract-tip {
-          margin-top: 8px;
-          font-size: 12px;
-          color: #6b7280;
-          text-align: center;
-          line-height: 1.4;
-        }
-      }
+    }
+    
+    .ai-extract-tip {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #a0aec0;
+      text-align: center;
     }
   }
   
@@ -961,39 +1030,44 @@ declare global {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    margin-top: 32px;
+    margin-top: 28px;
     padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid #f1f5f9;
     
     .btn {
-      padding: 8px 16px;
-      border-radius: 6px;
+      padding: 10px 20px;
+      border-radius: 8px;
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
+      border: 1px solid;
       
       &.btn-cancel {
-        background: #f9fafb;
-        border: 1px solid #d1d5db;
-        color: #374151;
+        background: #fff;
+        border-color: #e2e8f0;
+        color: #4a5568;
         
         &:hover {
-          background: #f3f4f6;
+          background: #f7fafc;
+          border-color: #cbd5e0;
         }
       }
       
       &.btn-primary {
-        background: #3b82f6;
-        border: 1px solid #3b82f6;
+        background: #33bcfc;
+        border-color: #33bcfc;
         color: white;
         
         &:hover:not(:disabled) {
-          background: #2563eb;
+          background: #00a9f4;
+          border-color: #00a9f4;
+          box-shadow: 0 2px 8px rgba(51, 188, 252, 0.3);
         }
         
         &:disabled {
-          opacity: 0.5;
+          background: #a0aec0;
+          border-color: #a0aec0;
           cursor: not-allowed;
         }
       }
