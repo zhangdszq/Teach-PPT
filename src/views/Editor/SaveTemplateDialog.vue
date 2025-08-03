@@ -773,25 +773,22 @@ const handleSave = async () => {
       return
     }
 
+    // 深拷贝当前幻灯片数据并清理不需要的字段
+    const cleanSlideData = (slide: any) => {
+      const cleaned = JSON.parse(JSON.stringify(slide))
+      // 移除 aiData 和 metadata 字段
+      delete cleaned.aiData
+      delete cleaned.metadata
+      return cleaned
+    }
+
     // 构建模板数据
     const templateData = {
       title: templateForm.name,
       width: viewportSize.value,
       height: viewportSize.value * viewportRatio.value,
       theme: theme.value,
-      slides: [currentSlide.value],
-      // 模板元数据
-      metadata: {
-        name: templateForm.name,
-        templateType: templateForm.templateType,
-        description: templateForm.description,
-        courseType: templateForm.courseType,
-        grades: templateForm.grades,
-        tags: templateForm.tags,
-        createdAt: new Date().toISOString(),
-        author: '教师', // 可以从用户信息中获取
-        version: '1.0'
-      }
+      slides: [cleanSlideData(currentSlide.value)]
     }
 
     // 清理 slideData 中的 base64 图片数据

@@ -82,10 +82,14 @@ export const getElementRange = (element: PPTElement) => {
   let minX, maxX, minY, maxY
 
   if (element.type === 'line') {
+    // 安全检查：确保 start 和 end 属性存在且有效
+    const start = element.start || [0, 0]
+    const end = element.end || [0, 0]
+    
     minX = element.left
-    maxX = element.left + Math.max(element.start[0], element.end[0])
+    maxX = element.left + Math.max(start[0] || 0, end[0] || 0)
     minY = element.top
-    maxY = element.top + Math.max(element.start[1], element.end[1])
+    maxY = element.top + Math.max(start[1] || 0, end[1] || 0)
   }
   else if ('rotate' in element && element.rotate) {
     const { left, top, width, height, rotate } = element

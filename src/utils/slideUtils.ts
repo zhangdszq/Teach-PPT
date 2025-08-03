@@ -1,4 +1,7 @@
+import { customAlphabet } from 'nanoid'
 import type { Slide } from '@/types/slides'
+
+const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
 
 /**
  * 创建空白幻灯片
@@ -29,7 +32,7 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
     // 添加标题元素
     if (aiData.title) {
       elements.push({
-        type: 'text',
+        type: 'text' as const,
         id: `title_${Date.now()}`,
         left: 100,
         top: 50,
@@ -59,7 +62,7 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
         
         if (component.type === 'subtitle') {
           elements.push({
-            type: 'text',
+            type: 'text' as const,
             id: `subtitle_${Date.now()}`,
             left: 100,
             top: 120,
@@ -98,7 +101,7 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
     // 如果没有组件数据，使用传统的content处理方式
     else if (aiData.content) {
       elements.push({
-        type: 'text',
+        type: 'text' as const,
         id: `content_${Date.now()}`,
         left: 100,
         top: aiData.title ? 150 : 100,
@@ -117,7 +120,7 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
       
       aiData.items.forEach((item: any, index: number) => {
         elements.push({
-          type: 'text',
+          type: 'text' as const,
           id: `item_${Date.now()}_${index}`,
           left: 120,
           top: itemTop + (index * 50),
@@ -154,24 +157,25 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
 const createWordElement = (component: any, left: number, top: number, width: number) => {
   const wordText = component.word || component.content || ''
   const pronunciation = component.pronunciation ? ` [${component.pronunciation}]` : ''
-  const meaning = component.meaning ? `<br><span style="color: #6b7280; font-size: 14px;">${component.meaning}</span>` : ''
+  const meaning = component.meaning ? ` - ${component.meaning}` : ''
   
   return {
-    type: 'text',
-    id: component.id || `word_${Date.now()}`,
+    type: 'text' as const,
+    id: `word_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     left,
     top,
     width,
-    height: 100,
+    height: 40,
     rotate: 0,
-    content: `<div style="padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background: #eff6ff;">
-      <p style="font-size: 20px; font-weight: bold; color: #1d4ed8; margin: 0;">
-        ${wordText}${pronunciation}
-      </p>
-      ${meaning}
-    </div>`,
     defaultFontName: '微软雅黑',
-    defaultColor: '#1d4ed8'
+    defaultColor: '#2563eb',
+    content: `<p style="font-size: 16px; font-weight: bold; color: #2563eb; margin: 0; line-height: 1.2;">${wordText}${pronunciation}${meaning}</p>`,
+    wordSpace: 5,
+    lineHeight: 1.2,
+    outline: { width: 0, style: 'solid' as const, color: '#d9d9d9' },
+    fill: '#ffffff',
+    vertical: false,
+    textType: 'vocabulary' as const,
   }
 }
 
@@ -180,24 +184,25 @@ const createWordElement = (component: any, left: number, top: number, width: num
  */
 const createSentenceElement = (component: any, left: number, top: number, width: number) => {
   const sentence = component.sentence || component.content || ''
-  const translation = component.translation ? `<br><span style="color: #6b7280; font-size: 14px;">${component.translation}</span>` : ''
+  const translation = component.translation ? ` (${component.translation})` : ''
   
   return {
-    type: 'text',
-    id: component.id || `sentence_${Date.now()}`,
+    type: 'text' as const,
+    id: `sentence_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     left,
     top,
     width,
-    height: 100,
+    height: 60,
     rotate: 0,
-    content: `<div style="padding: 15px; border: 2px solid #10b981; border-radius: 8px; background: #ecfdf5;">
-      <p style="font-size: 16px; color: #047857; margin: 0; line-height: 1.4;">
-        ${sentence}
-      </p>
-      ${translation}
-    </div>`,
     defaultFontName: '微软雅黑',
-    defaultColor: '#047857'
+    defaultColor: '#374151',
+    content: `<p style="font-size: 14px; color: #374151; margin: 0; line-height: 1.4;">${sentence}${translation}</p>`,
+    wordSpace: 5,
+    lineHeight: 1.4,
+    outline: { width: 0, style: 'solid' as const, color: '#d9d9d9' },
+    fill: '#ffffff',
+    vertical: false,
+    textType: 'sentence' as const,
   }
 }
 
@@ -209,7 +214,7 @@ const createImageDescriptionElement = (component: any, left: number, top: number
   const purpose = component.purpose ? `<br><span style="color: #6b7280; font-size: 12px;">用途：${component.purpose}</span>` : ''
   
   return {
-    type: 'text',
+    type: 'text' as const,
     id: component.id || `image_${Date.now()}`,
     left,
     top,

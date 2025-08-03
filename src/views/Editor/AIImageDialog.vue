@@ -54,20 +54,26 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useMainStore, useSlidesStore } from '@/store'
 import useAIImage from '@/hooks/useAIImage'
 import Modal from '@/components/Modal.vue'
 import TextArea from '@/components/TextArea.vue'
 import Select from '@/components/Select.vue'
 import Button from '@/components/Button.vue'
 
-defineProps<{
+const props = defineProps<{
   visible: boolean
 }>()
 
 const emit = defineEmits<{
   close: []
 }>()
+
+const mainStore = useMainStore()
+const slidesStore = useSlidesStore()
+const { handleElementId } = storeToRefs(mainStore)
 
 const { isGenerating, generateAIImage } = useAIImage()
 
@@ -80,6 +86,16 @@ const modelOptions = [
   { label: 'DALL-E 2', value: 'dall-e-2' },
   { label: 'Stable Diffusion', value: 'stable-diffusion' },
 ]
+
+// 监听对话框显示状态，当显示时从当前选中的图片元素获取 alt 描述
+watch(() => props.visible, (newVisible) => {
+  if (newVisible && handleElementId.value) {
+    const element = slidesStore.currentSlide.elements.find(el => el.id === handleElementId.value)
+    if (element && element.type === 'image' && element.alt) {
+      prompt.value = element.alt
+    }
+  }
+})
 
 const handleGenerate = async () => {
   if (!prompt.value.trim()) return

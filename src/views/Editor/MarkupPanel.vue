@@ -68,6 +68,8 @@ const textTypeOptions = ref<{ label: string; value: TextType | '' }[]>([
   { label: '未标记类型', value: '' },
   { label: '标题', value: 'title' },
   { label: '副标题', value: 'subtitle' },
+  { label: '词汇', value: 'vocabulary' },
+  { label: '句子', value: 'sentence' },
   { label: '正文', value: 'content' },
   { label: '列表项目', value: 'item' },
   { label: '列表项标题', value: 'itemTitle' },

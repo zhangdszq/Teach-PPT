@@ -139,7 +139,7 @@ interface PPTBaseElement {
 }
 
 
-export type TextType = 'title' | 'subtitle' | 'content' | 'item' | 'itemTitle' | 'notes' | 'header' | 'footer' | 'partNumber' | 'itemNumber'
+export type TextType = 'title' | 'subtitle' | 'content' | 'item' | 'itemTitle' | 'notes' | 'header' | 'footer' | 'partNumber' | 'itemNumber' | 'vocabulary' | 'sentence'
 
 /**
  * 文本元素
@@ -256,6 +256,8 @@ export type ImageType = 'pageFigure' | 'itemFigure' | 'background'
  * 
  * src: 图片地址
  * 
+ * alt?: 图片描述信息
+ * 
  * outline?: 边框
  * 
  * filters?: 图片滤镜
@@ -278,6 +280,7 @@ export interface PPTImageElement extends PPTBaseElement {
   type: 'image'
   fixedRatio: boolean
   src: string
+  alt?: string
   outline?: PPTElementOutline
   filters?: ImageElementFilters
   clip?: ImageElementClip
