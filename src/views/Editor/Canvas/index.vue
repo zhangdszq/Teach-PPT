@@ -105,6 +105,13 @@
       @close="saveTemplateDialogVisible = false"
     />
 
+    <TemplateSelectDialog 
+      :visible="manualTemplateSelectVisible"
+      :aiData="slides[slideIndex]?.aiData"
+      @close="closeManualTemplateSelect"
+      @select="handleManualTemplateSelect"
+    />
+
     <Modal
       v-model:visible="contentDataDialogVisible" 
       :width="800"
@@ -165,6 +172,7 @@ import Operate from './Operate/index.vue'
 import LinkDialog from './LinkDialog.vue'
 import AIImageDialog from '../AIImageDialog.vue'
 import SaveTemplateDialog from '../SaveTemplateDialog.vue'
+import TemplateSelectDialog from '../TemplateSelectDialog.vue'
 import Modal from '@/components/Modal.vue'
 
 const mainStore = useMainStore()
@@ -292,6 +300,64 @@ const extractElementRequirements = (elements: PPTElement[]) => {
 const closeContentDataDialog = () => {
   contentDataDialogVisible.value = false
   currentSlideAIData.value = null
+}
+
+// 手动选择模版对话框相关
+const manualTemplateSelectVisible = ref(false)
+
+const openManualTemplateSelect = () => {
+  const currentSlide = slides.value[slideIndex.value]
+  if (!currentSlide) {
+    message.warning('当前没有选中的幻灯片')
+    return
+  }
+  
+  if (!currentSlide.aiData) {
+    message.warning('当前幻灯片没有AI生成的数据，无法进行模版匹配')
+    return
+  }
+  
+  manualTemplateSelectVisible.value = true
+}
+
+const closeManualTemplateSelect = () => {
+  manualTemplateSelectVisible.value = false
+}
+
+const handleManualTemplateSelect = async (template: any) => {
+  try {
+    message.info('正在应用选择的模版...')
+    
+    const currentSlide = slides.value[slideIndex.value]
+    if (!currentSlide || !currentSlide.aiData) {
+      message.error('当前幻灯片数据异常')
+      return
+    }
+
+    // 调用模版匹配接口，根据当前 match 接口的请求参数去获取模版
+    const response = await api.matchTemplate(currentSlide.aiData)
+    const data = await response.json()
+    
+    if (data.success && data.data && data.data.length > 0) {
+      // 按分数匹配结果降序排列，选择指定的模版
+      const sortedResults = data.data.sort((a: any, b: any) => b.score - a.score)
+      const selectedResult = sortedResults.find((result: any) => result.template.templateId === template.id) || sortedResults[0]
+      
+      message.success(`成功应用模版：${template.name}，匹配分数：${selectedResult.score}`)
+      console.log('手动选择模版结果:', selectedResult)
+      
+      // 这里可以添加应用模版的逻辑
+      // 比如更新当前幻灯片的样式和布局
+      
+    } else {
+      message.warning('模版应用失败，请重试')
+    }
+    
+    manualTemplateSelectVisible.value = false
+  } catch (error) {
+    console.error('手动选择模版错误:', error)
+    message.error('模版应用失败，请稍后重试')
+  }
 }
 
 watch(handleElementId, () => {
@@ -495,6 +561,12 @@ const contextmenus = (): ContextmenuItem[] => {
     text: '查看内容数据',
     subText: '',
     handler: openContentDataDialog,
+  })
+  
+  baseMenus.push({
+    text: '手动选择模版',
+    subText: '',
+    handler: openManualTemplateSelect,
   })
   
   baseMenus.push({

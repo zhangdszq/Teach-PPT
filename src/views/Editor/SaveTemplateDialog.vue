@@ -131,7 +131,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 import message from '@/utils/message'
@@ -165,15 +165,8 @@ const templateForm = reactive({
   tags: [] as string[]
 })
 
-// 模板类型选项
-const templateTypeOptions = ref([
-  "自我介绍",
-  "学习目标",
-  "提问环节",
-  "正式学习",
-  "自由讨论",
-  "看图选择"
-])
+// 模板类型选项 - 从后端获取
+const templateTypeOptions = ref<string[]>([])
 
 // 年级选项
 const gradeOptions = [
@@ -197,11 +190,60 @@ const tagSuggestions = [
   '课文讲解', '知识点总结', '练习题', '复习资料', '互动游戏'
 ]
 
+// 获取模板类型选项
+const fetchTemplateTypes = async () => {
+  try {
+    const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/template/types' : '/api/template/types'
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+
+    const result = await response.json()
+    
+    if (result.status === 'success' && result.data && Array.isArray(result.data)) {
+      templateTypeOptions.value = result.data
+      console.log('✅ 模板类型选项获取成功:', result.data)
+    } else {
+      console.warn('⚠️ 模板类型选项获取失败，使用默认选项')
+      // 使用默认选项作为备选
+      templateTypeOptions.value = [
+        "自我介绍",
+        "学习目标", 
+        "提问环节",
+        "正式学习",
+        "自由讨论",
+        "看图选择"
+      ]
+    }
+  } catch (error) {
+    console.error('❌ 获取模板类型选项失败:', error)
+    // 使用默认选项作为备选
+    templateTypeOptions.value = [
+      "自我介绍",
+      "学习目标",
+      "提问环节", 
+      "正式学习",
+      "自由讨论",
+      "看图选择"
+    ]
+  }
+}
+
+// 组件挂载时获取模板类型选项
+onMounted(() => {
+  fetchTemplateTypes()
+})
+
 // 监听visible变化
 watch(() => props.visible, (newVal) => {
   dialogVisible.value = newVal
   if (newVal) {
     resetForm()
+    // 每次打开对话框时重新获取模板类型选项
+    fetchTemplateTypes()
   }
 })
 
@@ -223,16 +265,6 @@ const resetForm = () => {
   saving.value = false
   aiExtracting.value = false
   aiExtractedFeatures.value = null // 重置AI数据
-  
-  // 恢复默认模板类型选项
-  templateTypeOptions.value = [
-    "自我介绍",
-    "学习目标",
-    "提问环节",
-    "正式学习",
-    "自由讨论",
-    "看图选择"
-  ]
 }
 
 // 添加标签
@@ -707,7 +739,7 @@ const captureWithSVG = (element: HTMLElement): Promise<string | null> => {
     
   } catch (error) {
     console.error('SVG截图失败:', error)
-    return null
+    return Promise.resolve(null)
   }
 }
 

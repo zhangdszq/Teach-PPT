@@ -97,18 +97,18 @@
          <OutlineEditor v-model:value="outline" />
        </div>
       <div class="btns" v-if="!outlineCreating">
-        <Button class="btn" type="primary" @click="openTemplateSelect">选择模板</Button>
+        <Button class="btn" type="primary" @click="openStyleSelect">选择风格</Button>
         <Button class="btn" @click="outline = ''; step = 'setup'">重新设计课程</Button>
       </div>
     </div>
 
     <FullscreenSpin :loading="loading" tip="正在生成英语教学课件，请耐心等待 ..." />
     
-    <!-- 模板选择对话框 -->
-    <TemplateSelectDialog 
-      :visible="templateSelectVisible"
-      @close="closeTemplateSelect"
-      @select="handleTemplateSelect"
+    <!-- 风格选择对话框 -->
+    <StyleSelectDialog 
+      :visible="styleSelectVisible"
+      @close="closeStyleSelect"
+      @select="handleStyleSelect"
     />
   </div>
 </template>
@@ -129,7 +129,7 @@ import Button from '@/components/Button.vue'
 import Select from '@/components/Select.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
 import OutlineEditor from '@/components/OutlineEditor.vue'
-import TemplateSelectDialog from './TemplateSelectDialog.vue'
+import StyleSelectDialog from './StyleSelectDialog.vue'
 
 const mainStore = useMainStore()
 const slideStore = useSlidesStore()
@@ -149,7 +149,7 @@ const outlineRef = ref<HTMLElement>()
 const inputRef = ref<InstanceType<typeof Input>>()
 const step = ref<'setup' | 'outline' | 'template'>('setup')
 const model = ref('GLM-4-Flash')
-const templateSelectVisible = ref(false)
+const styleSelectVisible = ref(false)
 
 const isSubmitDisabled = computed(() => {
   return !keyword.value.trim() || !courseType.value || !grade.value
@@ -168,17 +168,17 @@ const setKeyword = (value: string) => {
   inputRef.value!.focus()
 }
 
-const openTemplateSelect = () => {
-  templateSelectVisible.value = true
+const openStyleSelect = () => {
+  styleSelectVisible.value = true
 }
 
-const closeTemplateSelect = () => {
-  templateSelectVisible.value = false
+const closeStyleSelect = () => {
+  styleSelectVisible.value = false
 }
 
-const handleTemplateSelect = (template: any) => {
-  selectedTemplate.value = template.id
-  templateSelectVisible.value = false
+const handleStyleSelect = (selectedStyle: any) => {
+  style.value = selectedStyle.name
+  styleSelectVisible.value = false
   // 直接开始生成PPT
   createPPT()
 }

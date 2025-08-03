@@ -13,50 +13,25 @@
         </button>
       </div>
 
-      <!-- 筛选栏 -->
-      <div class="filter-bar">
-        <div class="filter-group">
-          <label class="filter-label">教学类型：</label>
-          <div class="filter-buttons">
-            <button 
-              v-for="subject in subjects" 
-              :key="subject.value"
-              :class="['filter-btn', { active: selectedSubject === subject.value }]"
-              @click="selectedSubject = subject.value"
-            >
-              {{ subject.label }}
-            </button>
-          </div>
-        </div>
-        
-        <div class="filter-group">
-          <label class="filter-label">适用水平：</label>
-          <div class="filter-buttons">
-            <button 
-              v-for="grade in grades" 
-              :key="grade.value"
-              :class="['filter-btn', { active: selectedGrade === grade.value }]"
-              @click="selectedGrade = grade.value"
-            >
-              {{ grade.label }}
-            </button>
-          </div>
-        </div>
 
-        <div class="search-group">
-          <input 
-            v-model="searchKeyword"
-            class="search-input"
-            placeholder="搜索模板名称或标签..."
-          />
-          <IconSearch class="search-icon" />
-        </div>
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>正在获取匹配的模板...</p>
       </div>
 
       <!-- 模板网格 -->
-      <div class="template-grid">
+      <div class="template-grid" v-else>
+        <!-- 空状态 -->
+        <div v-if="matchedTemplates.length === 0" class="empty-state">
+          <div class="empty-icon">📋</div>
+          <h3>暂无匹配的模板</h3>
+          <p>当前内容没有找到匹配的模板，请尝试调整内容后重新匹配</p>
+        </div>
+        
+        <!-- 模板列表 -->
         <div 
-          v-for="template in filteredTemplates" 
+          v-for="template in matchedTemplates" 
           :key="template.id"
           :class="['template-card', { selected: selectedTemplate === template.id }]"
           @click="selectTemplate(template)"
@@ -69,6 +44,10 @@
                 预览
               </button>
             </div>
+            <!-- 显示匹配分数 -->
+            <div v-if="template.matchScore" class="match-score">
+              匹配度: {{ template.matchScore.toFixed(1) }}%
+            </div>
           </div>
           
           <div class="template-info">
@@ -78,11 +57,11 @@
             <div class="template-meta">
               <div class="meta-item">
                 <IconBook class="meta-icon" />
-                <span>{{ getSubjectLabel(template.subject) }}</span>
+                <span>{{ template.subject }}</span>
               </div>
               <div class="meta-item">
                 <IconGraduationCap class="meta-icon" />
-                <span>{{ getGradeLabel(template.grade) }}</span>
+                <span>{{ template.grade }}</span>
               </div>
               <div class="meta-item">
                 <IconUser class="meta-icon" />
@@ -126,6 +105,9 @@
             <div class="selected-details">
               <h4>{{ selectedTemplateData.name }}</h4>
               <p>{{ selectedTemplateData.description }}</p>
+              <p v-if="selectedTemplateData.matchScore" class="match-info">
+                匹配度: {{ selectedTemplateData.matchScore.toFixed(1) }}%
+              </p>
             </div>
           </template>
           <div v-else class="no-selection">
@@ -165,9 +147,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, toRefs } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
+import api from '@/services'
+import message from '@/utils/message'
 
 interface Template {
   id: string
@@ -182,10 +166,12 @@ interface Template {
   rating?: number
   author?: string
   createdAt?: string
+  matchScore?: number // 匹配分数
 }
 
 interface Props {
   visible: boolean
+  aiData?: any // 当前幻灯片的AI数据，用于模板匹配
 }
 
 interface Emits {
@@ -199,10 +185,7 @@ const emit = defineEmits<Emits>()
 const slideStore = useSlidesStore()
 const { templates: originalTemplates } = storeToRefs(slideStore)
 
-// 筛选状态
-const selectedSubject = ref('all')
-const selectedGrade = ref('all')
-const searchKeyword = ref('')
+// 状态管理
 const selectedTemplate = ref<string>('')
 const selectedTemplateData = ref<Template | null>(null)
 
@@ -210,216 +193,61 @@ const selectedTemplateData = ref<Template | null>(null)
 const previewVisible = ref(false)
 const previewTemplateData = ref<Template | null>(null)
 
-// 英语教学分类选项
-const subjects = [
-  { value: 'all', label: '全部类型' },
-  { value: 'phonics', label: '自然拼读' },
-  { value: 'vocabulary', label: '词汇教学' },
-  { value: 'grammar', label: '语法教学' },
-  { value: 'reading', label: '阅读理解' },
-  { value: 'listening', label: '听力训练' },
-  { value: 'speaking', label: '口语练习' },
-  { value: 'writing', label: '写作指导' },
-  { value: 'story', label: '故事教学' },
-  { value: 'song', label: '歌曲童谣' },
-  { value: 'game', label: '游戏互动' }
-]
+// 加载状态和匹配模板
+const loading = ref(false)
+const matchedTemplates = ref<Template[]>([])
 
-// 英语水平分类选项
-const grades = [
-  { value: 'all', label: '全部水平' },
-  { value: 'starter', label: '启蒙阶段' },
-  { value: 'beginner', label: '初级水平' },
-  { value: 'elementary', label: '基础水平' },
-  { value: 'intermediate', label: '中级水平' },
-  { value: 'advanced', label: '高级水平' },
-  { value: 'grade1-2', label: '1-2年级' },
-  { value: 'grade3-4', label: '3-4年级' },
-  { value: 'grade5-6', label: '5-6年级' },
-  { value: 'grade7-8', label: '7-8年级' },
-  { value: 'grade9-12', label: '9-12年级' }
-]
-
-// 英语教学专用模板数据
-const templates = ref<Template[]>([
-  {
-    id: 'template_1',
-    name: '字母认知启蒙',
-    description: '专为英语字母启蒙设计，包含字母形状、发音、书写练习，适合初学者',
-    cover: 'https://asset.pptist.cn/img/template_1.jpg',
-    subject: 'phonics',
-    grade: 'starter',
-    tags: ['字母认知', '发音练习', '书写训练'],
-    likes: 245,
-    downloads: 678,
-    rating: 4.9,
-    author: '李老师',
-    createdAt: '2024-01-15'
-  },
-  {
-    id: 'template_2',
-    name: '自然拼读基础',
-    description: '系统化的自然拼读教学，包含字母组合、发音规律、拼读练习',
-    cover: 'https://asset.pptist.cn/img/template_2.jpg',
-    subject: 'phonics',
-    grade: 'beginner',
-    tags: ['自然拼读', '发音规律', '拼读练习'],
-    likes: 189,
-    downloads: 432,
-    rating: 4.8,
-    author: '王老师',
-    createdAt: '2024-01-20'
-  },
-  {
-    id: 'template_3',
-    name: '词汇卡片教学',
-    description: '互动式词汇学习卡片，包含单词图片、音标、例句、记忆技巧',
-    cover: 'https://asset.pptist.cn/img/template_3.jpg',
-    subject: 'vocabulary',
-    grade: 'elementary',
-    tags: ['词汇卡片', '图片记忆', '例句练习'],
-    likes: 312,
-    downloads: 789,
-    rating: 4.7,
-    author: '张老师',
-    createdAt: '2024-01-25'
-  },
-  {
-    id: 'template_4',
-    name: '语法点精讲',
-    description: '清晰的语法知识点讲解，包含规则说明、例句对比、练习巩固',
-    cover: 'https://asset.pptist.cn/img/template_4.jpg',
-    subject: 'grammar',
-    grade: 'intermediate',
-    tags: ['语法精讲', '规则说明', '对比练习'],
-    likes: 156,
-    downloads: 345,
-    rating: 4.6,
-    author: '陈老师',
-    createdAt: '2024-02-01'
-  },
-  {
-    id: 'template_5',
-    name: '绘本故事教学',
-    description: '生动的英语绘本故事课件，包含故事情节、角色介绍、互动问答',
-    cover: 'https://asset.pptist.cn/img/template_1.jpg',
-    subject: 'story',
-    grade: 'grade1-2',
-    tags: ['绘本故事', '角色扮演', '互动问答'],
-    likes: 278,
-    downloads: 567,
-    rating: 4.8,
-    author: '刘老师',
-    createdAt: '2024-02-05'
-  },
-  {
-    id: 'template_6',
-    name: '听力训练专题',
-    description: '系统的听力技能训练，包含听力材料、题型练习、技巧指导',
-    cover: 'https://asset.pptist.cn/img/template_2.jpg',
-    subject: 'listening',
-    grade: 'grade5-6',
-    tags: ['听力训练', '题型练习', '技巧指导'],
-    likes: 134,
-    downloads: 298,
-    rating: 4.5,
-    author: '赵老师',
-    createdAt: '2024-02-10'
-  },
-  {
-    id: 'template_7',
-    name: '口语对话练习',
-    description: '实用的口语对话场景，包含日常对话、角色扮演、发音纠正',
-    cover: 'https://asset.pptist.cn/img/template_3.jpg',
-    subject: 'speaking',
-    grade: 'grade3-4',
-    tags: ['口语对话', '场景练习', '发音纠正'],
-    likes: 201,
-    downloads: 456,
-    rating: 4.7,
-    author: '孙老师',
-    createdAt: '2024-02-15'
-  },
-  {
-    id: 'template_8',
-    name: '写作指导课件',
-    description: '英语写作技能培养，包含写作结构、句型模板、范文分析',
-    cover: 'https://asset.pptist.cn/img/template_4.jpg',
-    subject: 'writing',
-    grade: 'grade7-8',
-    tags: ['写作指导', '句型模板', '范文分析'],
-    likes: 167,
-    downloads: 378,
-    rating: 4.6,
-    author: '周老师',
-    createdAt: '2024-02-20'
-  },
-  {
-    id: 'template_9',
-    name: '英语歌曲教学',
-    description: '寓教于乐的英语歌曲课件，包含歌词学习、节拍练习、文化背景',
-    cover: 'https://asset.pptist.cn/img/template_1.jpg',
-    subject: 'song',
-    grade: 'starter',
-    tags: ['英语歌曲', '节拍练习', '文化背景'],
-    likes: 289,
-    downloads: 623,
-    rating: 4.9,
-    author: '吴老师',
-    createdAt: '2024-02-25'
-  },
-  {
-    id: 'template_10',
-    name: '课堂游戏互动',
-    description: '丰富的英语课堂游戏，包含单词游戏、语法竞赛、团队合作',
-    cover: 'https://asset.pptist.cn/img/template_2.jpg',
-    subject: 'game',
-    grade: 'elementary',
-    tags: ['课堂游戏', '语法竞赛', '团队合作'],
-    likes: 356,
-    downloads: 712,
-    rating: 4.8,
-    author: '郑老师',
-    createdAt: '2024-03-01'
-  }
-])
-
-// 筛选后的模板
-const filteredTemplates = computed(() => {
-  let result = templates.value
-
-  // 学科筛选
-  if (selectedSubject.value !== 'all') {
-    result = result.filter(t => t.subject === selectedSubject.value)
+// 从 match 接口获取模板数据
+const fetchMatchedTemplates = async () => {
+  if (!props.aiData) {
+    console.warn('没有AI数据，使用默认模板')
+    return
   }
 
-  // 年级筛选
-  if (selectedGrade.value !== 'all') {
-    result = result.filter(t => t.grade === selectedGrade.value)
+  try {
+    loading.value = true
+    const response = await api.matchTemplate(props.aiData)
+    const data = await response.json()
+    
+    console.log('Match API 返回数据:', data)
+    
+    // 修正数据结构判断：接口返回的是 status: "success" 而不是 success: true
+    if (data.status === 'success' && data.data && data.data.length > 0) {
+      // 按分数匹配结果降序排列
+      const sortedResults = data.data.sort((a: any, b: any) => b.score - a.score)
+      
+      // 将匹配结果转换为模板格式
+      matchedTemplates.value = sortedResults.map((result: any, index: number) => ({
+        id: result.template.templateId || result.template.id || `template_${index}`,
+        name: result.template.name || `模板 ${index + 1}`,
+        description: result.template.description || `AI推荐模板，匹配分数：${result.score.toFixed(2)}`,
+        cover: result.template.cover || result.template.thumbnail || 'https://via.placeholder.com/320x180?text=Template',
+        subject: result.template.subject || 'english',
+        grade: result.template.gradeLevel || result.template.grade || 'elementary',
+        tags: result.template.tags || [result.template.templateCategory || 'AI匹配'],
+        likes: Math.floor(Math.random() * 200) + 50,
+        downloads: Math.floor(Math.random() * 500) + 100,
+        rating: Math.min(5.0, 4.0 + result.score / 100), // 根据匹配分数计算评分
+        author: result.template.author || 'AI推荐',
+        createdAt: result.template.createdAt || new Date().toISOString().split('T')[0],
+        matchScore: result.score // 保存匹配分数
+      }))
+      
+      console.log('获取到匹配模板:', matchedTemplates.value)
+    } else {
+      console.log('未找到匹配的模板或数据格式不正确:', data)
+      message.warning('未找到匹配的模板，使用默认模板')
+      matchedTemplates.value = []
+    }
+  } catch (error) {
+    console.error('获取匹配模板失败:', error)
+    message.error('获取模板失败，使用默认模板')
+    matchedTemplates.value = []
+  } finally {
+    loading.value = false
   }
-
-  // 关键词搜索
-  if (searchKeyword.value.trim()) {
-    const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(t => 
-      t.name.toLowerCase().includes(keyword) ||
-      t.description.toLowerCase().includes(keyword) ||
-      t.tags.some(tag => tag.toLowerCase().includes(keyword))
-    )
-  }
-
-  return result
-})
-
-// 获取学科标签
-const getSubjectLabel = (subject: string) => {
-  return subjects.find(s => s.value === subject)?.label || subject
 }
 
-// 获取年级标签
-const getGradeLabel = (grade: string) => {
-  return grades.find(g => g.value === grade)?.label || grade
-}
 
 // 选择模板
 const selectTemplate = (template: Template) => {
@@ -451,27 +279,16 @@ const handleConfirm = () => {
   }
 }
 
-// 初始化
-onMounted(() => {
-  // 如果有原始模板数据，可以在这里合并
-  if (originalTemplates.value.length > 0) {
-    // 将原始模板数据转换为新格式
-    const convertedTemplates = originalTemplates.value.map(t => ({
-      id: t.id,
-      name: t.name,
-      description: `${t.name}模板，适用于多种教学场景`,
-      cover: t.cover,
-      subject: 'english', // 默认英语
-      grade: 'primary', // 默认小学
-      tags: ['通用模板'],
-      likes: Math.floor(Math.random() * 200) + 50,
-      downloads: Math.floor(Math.random() * 500) + 100,
-      rating: 4.5 + Math.random() * 0.5,
-      author: '系统',
-      createdAt: '2024-01-01'
-    }))
+// 监听对话框显示状态，当打开时获取匹配模板
+const { visible } = toRefs(props)
+watch(visible, (newVisible) => {
+  if (newVisible) {
+    // 重置状态
+    selectedTemplate.value = ''
+    selectedTemplateData.value = null
     
-    templates.value = [...templates.value, ...convertedTemplates]
+    // 获取匹配模板
+    fetchMatchedTemplates()
   }
 })
 </script>
@@ -554,80 +371,28 @@ onMounted(() => {
   }
 }
 
-.filter-bar {
-  padding: 20px 32px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
 
-  .filter-group {
-    display: flex;
-    align-items: center;
+.loading-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
     margin-bottom: 16px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    .filter-label {
-      font-weight: 600;
-      color: #374151;
-      margin-right: 16px;
-      min-width: 80px;
-    }
-
-    .filter-buttons {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-
-      .filter-btn {
-        padding: 6px 16px;
-        border: 1px solid #d1d5db;
-        background: white;
-        border-radius: 20px;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover {
-          border-color: #3b82f6;
-          color: #3b82f6;
-        }
-
-        &.active {
-          background: #3b82f6;
-          border-color: #3b82f6;
-          color: white;
-        }
-      }
-    }
   }
 
-  .search-group {
-    position: relative;
-    max-width: 300px;
-
-    .search-input {
-      width: 100%;
-      padding: 8px 40px 8px 16px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-
-      &:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-      }
-    }
-
-    .search-icon {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #9ca3af;
-    }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 }
 
@@ -638,6 +403,37 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
+
+  .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    color: #6b7280;
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    h3 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      color: #374151;
+    }
+
+    p {
+      font-size: 16px;
+      margin: 0;
+      max-width: 400px;
+      line-height: 1.5;
+    }
+  }
 
   .template-card {
     border: 2px solid #e5e7eb;
@@ -667,6 +463,18 @@ onMounted(() => {
         width: 100%;
         height: 100%;
         object-fit: cover;
+      }
+
+      .match-score {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(59, 130, 246, 0.9);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
       }
 
       .preview-overlay {
@@ -810,9 +618,14 @@ onMounted(() => {
       }
 
       p {
-        margin: 0;
+        margin: 0 0 2px 0;
         font-size: 14px;
         color: #6b7280;
+      }
+
+      .match-info {
+        color: #3b82f6;
+        font-weight: 600;
       }
     }
 
