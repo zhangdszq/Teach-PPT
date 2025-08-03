@@ -156,6 +156,26 @@ const api = {
       body: JSON.stringify(searchCriteria),
     })
   },
+
+  // 使用模板接口
+  useTemplate({
+    templateId,
+    aiData,
+  }: {
+    templateId: string
+    aiData: any
+  }): Promise<any> {
+    return fetch(`${SERVER_URL}/api/template/use`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        templateId,
+        aiData,
+      }),
+    })
+  },
 }
 
 // 导出 SERVER_URL 供其他组件使用

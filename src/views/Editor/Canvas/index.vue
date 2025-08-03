@@ -334,23 +334,49 @@ const handleManualTemplateSelect = async (template: any) => {
       return
     }
 
-    // 调用模版匹配接口，根据当前 match 接口的请求参数去获取模版
-    const response = await api.matchTemplate(currentSlide.aiData)
+    // 调用后端 /use 接口，传入 templateId 和 aiData
+    const response = await api.useTemplate({
+      templateId: template.id,
+      aiData: currentSlide.aiData
+    })
+    
     const data = await response.json()
     
-    if (data.success && data.data && data.data.length > 0) {
-      // 按分数匹配结果降序排列，选择指定的模版
-      const sortedResults = data.data.sort((a: any, b: any) => b.score - a.score)
-      const selectedResult = sortedResults.find((result: any) => result.template.templateId === template.id) || sortedResults[0]
+    if (data.status === 'success' && data.data) {
+      // 后端返回的数据结构：data.slides[0] 包含处理后的幻灯片数据
+      const responseData = data.data
       
-      message.success(`成功应用模版：${template.name}，匹配分数：${selectedResult.score}`)
-      console.log('手动选择模版结果:', selectedResult)
+      console.log('后端返回的完整数据:', responseData)
       
-      // 这里可以添加应用模版的逻辑
-      // 比如更新当前幻灯片的样式和布局
+      // 检查是否有slides数据
+      if (responseData.slides && responseData.slides.length > 0) {
+        const newSlideData = responseData.slides[0] // 取第一个幻灯片数据
+        
+        console.log('提取的幻灯片数据:', newSlideData)
+        
+        // 更新当前幻灯片的内容
+        if (newSlideData.elements && Array.isArray(newSlideData.elements)) {
+          // 更新幻灯片元素和背景
+          slidesStore.updateSlide({
+            elements: newSlideData.elements,
+            background: newSlideData.background || currentSlide.background,
+            // 保持原有的aiData
+            aiData: currentSlide.aiData
+          })
+          
+          message.success(`成功应用模版：${template.name}`)
+          console.log('模版应用成功，已更新幻灯片内容')
+        } else {
+          console.error('幻灯片元素数据异常:', newSlideData)
+          message.warning('模版数据格式异常：缺少有效的元素数据')
+        }
+      } else {
+        console.error('后端返回数据格式异常:', responseData)
+        message.warning('模版数据格式异常：缺少幻灯片数据')
+      }
       
     } else {
-      message.warning('模版应用失败，请重试')
+      message.error(data.message || '模版应用失败，请重试')
     }
     
     manualTemplateSelectVisible.value = false
