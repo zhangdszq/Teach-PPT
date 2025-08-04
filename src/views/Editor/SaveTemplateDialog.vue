@@ -312,7 +312,8 @@ const cleanBase64Images = (obj: any): any => {
     for (const key in current) {
       if (Object.prototype.hasOwnProperty.call(current, key)) {
         const value = current[key]
-        if (imageProps.includes(key) && typeof value === 'string' && value.startsWith('data:image')) {
+        // 只有 imageType 为 itemFigure 时才清理图片数据
+        if (imageProps.includes(key) && typeof value === 'string' && value.startsWith('data:image') && current.imageType === 'itemFigure') {
           result[key] = '[图片数据已清理]'
         } else {
           result[key] = recurse(value)
