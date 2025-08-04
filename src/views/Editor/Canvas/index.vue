@@ -356,16 +356,30 @@ const handleManualTemplateSelect = async (template: any) => {
         
         // 更新当前幻灯片的内容
         if (newSlideData.elements && Array.isArray(newSlideData.elements)) {
+          // 构建尺寸信息对象，从根级别的responseData中获取width和height
+          const slideSize = {
+            width: responseData.width || 1280,
+            height: responseData.height || 720
+          }
+          
+          console.log('从后端获取的模板尺寸:', slideSize)
+          
+          // 使用 fixedViewport 模式处理元素适配
+          const processedElements = processElementsWithFixedViewport(newSlideData.elements, slideSize)
+          
           // 更新幻灯片元素和背景
           slidesStore.updateSlide({
-            elements: newSlideData.elements,
+            elements: processedElements,
             background: newSlideData.background || currentSlide.background,
             // 保持原有的aiData
             aiData: currentSlide.aiData
           })
           
+          // 设置适配的视口大小
+          applyFixedViewportSettings(slideSize)
+          
           message.success(`成功应用模版：${template.name}`)
-          console.log('模版应用成功，已更新幻灯片内容')
+          console.log('模版应用成功，已更新幻灯片内容并适配画布')
         } else {
           console.error('幻灯片元素数据异常:', newSlideData)
           message.warning('模版数据格式异常：缺少有效的元素数据')
@@ -384,6 +398,198 @@ const handleManualTemplateSelect = async (template: any) => {
     console.error('手动选择模版错误:', error)
     message.error('模版应用失败，请稍后重试')
   }
+}
+
+// 使用固定视口模式处理元素适配
+const processElementsWithFixedViewport = (elements: PPTElement[], slideSize?: { width: number; height: number }) => {
+  if (!slideSize) {
+    // 如果没有尺寸信息，假设是 1280x720
+    slideSize = { width: 1280, height: 720 }
+  }
+  
+  // 计算缩放比例，固定视口宽度为 1000px
+  const ratio = 1000 / slideSize.width
+  
+  console.log(`应用固定视口适配: 原始尺寸 ${slideSize.width}x${slideSize.height}, 缩放比例 ${ratio}`)
+  
+  // 如果已经是标准尺寸（1000px宽度），不需要缩放
+  if (Math.abs(slideSize.width - 1000) < 1) {
+    console.log('模板已经是标准尺寸，跳过缩放处理')
+    return elements
+  }
+  
+  // 对所有元素应用缩放
+  return elements.map(element => {
+    const scaledElement = { ...element }
+    
+    // 缩放位置和尺寸
+    scaledElement.left = element.left * ratio
+    scaledElement.top = element.top * ratio
+    scaledElement.width = element.width * ratio
+    scaledElement.height = element.height * ratio
+    
+    // 处理文本元素
+    if (element.type === 'text') {
+      if (element.content) {
+        scaledElement.content = scaleHtmlContent(element.content, ratio)
+      }
+      // 处理文本元素的边框
+      if (element.outline?.width) {
+        scaledElement.outline = {
+          ...element.outline,
+          width: +(element.outline.width * ratio).toFixed(2)
+        }
+      }
+    }
+    
+    // 处理形状元素
+    if (element.type === 'shape') {
+      // 处理形状内的文本
+      if (element.text?.content) {
+        scaledElement.text = {
+          ...element.text,
+          content: scaleHtmlContent(element.text.content, ratio)
+        }
+      }
+      // 处理形状边框
+      if (element.outline?.width) {
+        scaledElement.outline = {
+          ...element.outline,
+          width: +(element.outline.width * ratio).toFixed(2)
+        }
+      }
+    }
+    
+    // 处理线条元素
+    if (element.type === 'line') {
+      // 线条的宽度需要缩放
+      scaledElement.width = +(element.width * ratio).toFixed(2)
+      // 处理线条的起点和终点
+      if (element.start) {
+        scaledElement.start = [
+          element.start[0] * ratio,
+          element.start[1] * ratio
+        ]
+      }
+      if (element.end) {
+        scaledElement.end = [
+          element.end[0] * ratio,
+          element.end[1] * ratio
+        ]
+      }
+      // 处理折线的中间点
+      if (element.broken2) {
+        scaledElement.broken2 = [
+          element.broken2[0] * ratio,
+          element.broken2[1] * ratio
+        ]
+      }
+    }
+    
+    // 处理图片元素边框
+    if (element.type === 'image' && element.outline?.width) {
+      scaledElement.outline = {
+        ...element.outline,
+        width: +(element.outline.width * ratio).toFixed(2)
+      }
+    }
+    
+    // 处理表格元素
+    if (element.type === 'table') {
+      // 处理表格边框
+      if (element.outline?.width) {
+        scaledElement.outline = {
+          ...element.outline,
+          width: +(element.outline.width * ratio).toFixed(2)
+        }
+      }
+      // 处理单元格最小高度
+      if (element.cellMinHeight) {
+        scaledElement.cellMinHeight = element.cellMinHeight * ratio
+      }
+      // 处理表格数据中的字体大小
+      if (element.data) {
+        scaledElement.data = element.data.map(row => 
+          row.map(cell => ({
+            ...cell,
+            style: {
+              ...cell.style,
+              fontsize: cell.style?.fontsize ? scalePixelValue(cell.style.fontsize, ratio) : cell.style?.fontsize
+            }
+          }))
+        )
+      }
+    }
+    
+    // 处理阴影
+    if (element.shadow) {
+      scaledElement.shadow = {
+        ...element.shadow,
+        h: element.shadow.h * ratio,
+        v: element.shadow.v * ratio,
+        blur: element.shadow.blur * ratio
+      }
+    }
+    
+    return scaledElement
+  })
+}
+
+// 缩放HTML内容中的字体大小和其他尺寸
+const scaleHtmlContent = (html: string, ratio: number) => {
+  return html
+    // 处理 font-size: XXpt 格式
+    .replace(/font-size:\s*([\d.]+)pt/g, (match, p1) => {
+      return `font-size: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+    })
+    // 处理 font-size: XXpx 格式
+    .replace(/font-size:\s*([\d.]+)px/g, (match, p1) => {
+      return `font-size: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+    })
+    // 处理行高
+    .replace(/line-height:\s*([\d.]+)px/g, (match, p1) => {
+      return `line-height: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+    })
+    // 处理边距
+    .replace(/margin:\s*([\d.]+)px/g, (match, p1) => {
+      return `margin: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+    })
+    .replace(/padding:\s*([\d.]+)px/g, (match, p1) => {
+      return `padding: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+    })
+}
+
+// 缩放像素值
+const scalePixelValue = (value: string, ratio: number) => {
+  if (!value) return value
+  
+  const match = value.match(/([\d.]+)px/)
+  if (match) {
+    return `${(parseFloat(match[1]) * ratio).toFixed(1)}px`
+  }
+  
+  return value
+}
+
+// 应用固定视口设置
+const applyFixedViewportSettings = (slideSize?: { width: number; height: number }) => {
+  if (!slideSize) {
+    slideSize = { width: 1280, height: 720 }
+  }
+  
+  // 设置视口大小为固定的 1000px 宽度
+  slidesStore.setViewportSize(1000)
+  // 设置视口比例
+  slidesStore.setViewportRatio(slideSize.height / slideSize.width)
+  
+  console.log(`设置固定视口: 宽度 1000px, 比例 ${slideSize.height / slideSize.width}`)
+}
+
+// 字体大小转换函数（从 pt 转换为 px）
+const convertFontSizePtToPx = (html: string, ratio: number) => {
+  return html.replace(/font-size:\s*([\d.]+)pt/g, (match, p1) => {
+    return `font-size: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+  })
 }
 
 watch(handleElementId, () => {
