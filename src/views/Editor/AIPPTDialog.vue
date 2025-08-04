@@ -230,6 +230,65 @@ const createOutline = async () => {
   readStream()
 }
 
+// 默认方式创建幻灯片的辅助函数
+const createSlideWithDefaultMethod = (processedAIData: any, matchedTemplate: any, blankSlide: any, aiData: any) => {
+  try {
+    // 使用工具函数在空白PPT上绘制内容
+    const finalSlide = createSlideFromAIData(processedAIData, matchedTemplate, blankSlide.id)
+    
+    // 保存AI数据到幻灯片中
+    finalSlide.aiData = aiData
+    console.log('🎨 内容绘制完成，最终页面ID:', finalSlide.id)
+    console.log('🎨 最终幻灯片元素数量:', finalSlide.elements.length)
+      
+    // 添加到幻灯片集合
+    const currentSlides = slideStore.slides
+    if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+      // 如果当前是空幻灯片，直接替换
+      slideStore.setSlides([finalSlide])
+    } else {
+      // 如果已有幻灯片，则添加到现有幻灯片后面
+      slideStore.addSlide(finalSlide)
+    }
+    
+    console.log(`✅ 成功添加1张幻灯片，当前总数: ${slideStore.slides.length}`)
+  } catch (error) {
+    console.error('❌ 默认方式创建幻灯片失败:', error)
+  }
+}
+
+// 调用后端模板匹配接口
+const matchTemplate = async (aiData: any) => {
+  try {
+    console.log('🔍 调用模板匹配接口，原始AI数据:', aiData)
+    
+    const pptSlideDdata = JSON.parse(JSON.stringify(aiData))
+    const response = await api.matchTemplate(pptSlideDdata)
+    
+    const result = await response.json()
+    console.log('✅ 模板匹配成功:', result)
+    
+    // 如果匹配成功且有结果，返回最佳匹配的模板
+    if (result.status === 'success' && result.data && result.data.length > 0) {
+      const bestMatch = result.data[0]
+      return {
+        templateId: bestMatch.template.templateId,
+        layout: bestMatch.template.layoutType,
+        elements: extractElementsFromTemplate(bestMatch.template),
+        matchScore: bestMatch.score,
+        template: bestMatch.template,
+        aiData: aiData // 保留原始AI数据
+      }
+    }
+    
+    // 返回默认模板
+    return getDefaultTemplate()
+  } catch (error) {
+    console.error('❌ 模板匹配失败:', error)
+    return getDefaultTemplate()
+  }
+}
+
 const createPPT = async () => {
   loading.value = true
 
@@ -268,40 +327,93 @@ const createPPT = async () => {
           const aiData = JSON.parse(trimmedPageData)
           
           if (aiData && typeof aiData === 'object') {
-          console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
-          
-          // 创建一页空白PPT
-          const blankSlide = createBlankSlide()
-          console.log('✅ 创建空白PPT页面，ID:', blankSlide.id)
-          
-          // 处理AI数据，使用words、sentences、imageDescriptions替代content
-          const processedAIData = processAIDataForDisplay(aiData)
-          console.log('🔄 数据处理完成，组件数量:', processedAIData.components?.length || 0)
-          console.log('🔍 处理后的组件详情:', processedAIData.components)
-          
-          // 调用后端模板匹配接口，完整传递AI返回的内容
-          const matchedTemplate = await matchTemplate(aiData, selectedTemplate.value)
-          console.log('🎨 模板匹配完成:', matchedTemplate)
-          
-          // 使用工具函数在空白PPT上绘制内容
-          const finalSlide = createSlideFromAIData(processedAIData, matchedTemplate, blankSlide.id)
-          
-          // 保存AI数据到幻灯片中
-          finalSlide.aiData = aiData
-          console.log('🎨 内容绘制完成，最终页面ID:', finalSlide.id)
-          console.log('🎨 最终幻灯片元素数量:', finalSlide.elements.length)
+            console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
             
-            // 添加到幻灯片集合
-            const currentSlides = slideStore.slides
-            if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
-              // 如果当前是空幻灯片，直接替换
-              slideStore.setSlides([finalSlide])
+            // 创建一页空白PPT
+            const blankSlide = createBlankSlide()
+            console.log('✅ 创建空白PPT页面，ID:', blankSlide.id)
+            
+            // 处理AI数据，使用words、sentences、imageDescriptions替代content
+            const processedAIData = processAIDataForDisplay(aiData)
+            console.log('🔄 数据处理完成，组件数量:', processedAIData.components?.length || 0)
+            console.log('🔍 处理后的组件详情:', processedAIData.components)
+            
+            // 调用后端模板匹配接口
+            const matchedTemplate = await matchTemplate(aiData)
+            console.log('🎨 模板匹配完成:', matchedTemplate)
+            
+            // 如果匹配到模板，调用use接口应用模板
+            if (matchedTemplate && matchedTemplate.templateId !== 'default') {
+              try {
+                console.log('🔧 调用use接口应用模板:', matchedTemplate.templateId)
+                const useResponse = await api.useTemplate({
+                  templateId: matchedTemplate.templateId,
+                  aiData: aiData
+                })
+                
+              const useResult = await useResponse.json()
+              console.log('✅ 模板应用响应:', useResult)
+              
+              // 检查响应状态
+              if (!useResponse.ok) {
+                throw new Error(`HTTP ${useResponse.status}: ${useResult.message || '请求失败'}`)
+              }
+              
+              if (useResult.status === 'success' && useResult.data) {
+                  // 使用后端返回的完整幻灯片数据
+                  const templateSlides = useResult.data.slides || []
+                  const processedSlides = []
+                  
+                  // 第一步：先创建所有文字版幻灯片
+                  for (const slideData of templateSlides) {
+                    // 为每个幻灯片创建新的ID
+                    const slideId = slideData.id || `slide_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                    
+                    // 构建完整的幻灯片对象
+                    const finalSlide = {
+                      id: slideId,
+                      elements: slideData.elements || [],
+                      background: slideData.background || { type: 'solid', color: '#ffffff' },
+                      aiData: aiData, // 保存原始AI数据
+                      templateInfo: useResult.data.templateInfo
+                    }
+                    
+                    console.log('📝 创建文字版幻灯片:', finalSlide.id, '元素数量:', finalSlide.elements.length)
+                    processedSlides.push(finalSlide)
+                  }
+                  
+                  // 第二步：将所有文字版幻灯片添加到幻灯片集合
+                  const currentSlides = slideStore.slides
+                  if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+                    // 如果当前是空幻灯片，直接替换
+                    slideStore.setSlides(processedSlides)
+                  } else {
+                    // 如果已有幻灯片，则添加到现有幻灯片后面
+                    processedSlides.forEach(slide => slideStore.addSlide(slide))
+                  }
+                  
+                  console.log(`✅ 成功添加 ${templateSlides.length} 张文字版幻灯片，当前总数: ${slideStore.slides.length}`)
+                  
+                  // 第三步：异步处理AI图片生成，不阻塞PPT显示
+                  setTimeout(async () => {
+                    console.log('🖼️ 开始逐页处理AI图片生成...')
+                    await processAllSlidesAIImages(processedSlides)
+                  }, 500) // 延迟500ms开始处理图片，确保PPT已经显示
+                } else {
+                  console.warn('⚠️ 模板应用失败，使用默认方式创建幻灯片')
+                  // 回退到原来的方式
+                  createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
+                }
+              } catch (useError) {
+                console.error('❌ 调用use接口失败:', useError)
+                // 回退到原来的方式
+                createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
+              }
             } else {
-              // 如果已有幻灯片，则添加到现有幻灯片后面
-              slideStore.addSlide(finalSlide)
+              console.log('🔄 使用默认模板创建幻灯片')
+              // 使用默认方式创建幻灯片
+              createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
             }
-            
-            console.log(`✅ 成功添加1张幻灯片，当前总数: ${slideStore.slides.length}`)
           }
         } catch (pageError) {
           // 页面解析失败，可能是不完整的JSON，继续处理下一页
@@ -341,38 +453,6 @@ const createPPT = async () => {
   }
   
   readStream()
-}
-
-// 调用后端模板匹配接口
-const matchTemplate = async (aiData: any, templateId: string) => {
-  try {
-    console.log('🔍 调用模板匹配接口，原始AI数据:', aiData)
-    
-    const pptSlideDdata = JSON.parse(JSON.stringify(aiData))
-    const response = await api.matchTemplate(pptSlideDdata)
-    
-    const result = await response.json()
-    console.log('✅ 模板匹配成功:', result)
-    
-    // 如果匹配成功且有结果，返回最佳匹配的模板
-    if (result.success && result.data && result.data.length > 0) {
-      const bestMatch = result.data[0]
-      return {
-        templateId: bestMatch.template.templateId,
-        layout: bestMatch.template.layoutType,
-        elements: extractElementsFromTemplate(bestMatch.template),
-        matchScore: bestMatch.score,
-        template: bestMatch.template,
-        aiData: aiData // 保留原始AI数据
-      }
-    }
-    
-    // 返回默认模板
-    return getDefaultTemplate()
-  } catch (error) {
-    console.error('❌ 模板匹配失败:', error)
-    return getDefaultTemplate()
-  }
 }
 
 // 从AI数据中提取布局类型
@@ -622,6 +702,89 @@ const processAIDataForDisplay = (aiData: any) => {
   })
   
   return processedData
+}
+
+// 批量处理所有幻灯片的AI图片生成
+const processAllSlidesAIImages = async (slides: any[]) => {
+  try {
+    console.log(`🖼️ 开始批量处理 ${slides.length} 张幻灯片的AI图片生成`)
+    
+    let totalImagesProcessed = 0
+    
+    // 逐页处理AI图片生成
+    for (let i = 0; i < slides.length; i++) {
+      const slide = slides[i]
+      console.log(`📄 处理第 ${i + 1}/${slides.length} 张幻灯片: ${slide.id}`)
+      
+      // 查找当前幻灯片中需要AI生成图片的元素
+      const imageElements = slide.elements.filter((element: any) => 
+        element.type === 'image' && element.alt && element.alt.trim() !== '' && element.alt !== 'REMOVE_THIS_ELEMENT'
+      )
+      
+      if (imageElements.length === 0) {
+        console.log(`📷 第 ${i + 1} 张幻灯片无需AI生成图片`)
+        continue
+      }
+      
+      console.log(`🎯 第 ${i + 1} 张幻灯片找到 ${imageElements.length} 个需要AI生成图片的元素`)
+      
+      // 为当前幻灯片的每个图片元素生成AI图片
+      for (const imageElement of imageElements) {
+        try {
+          const prompt = imageElement.alt
+          console.log(`🎨 为第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} 生成AI图片，提示词: ${prompt}`)
+          
+          // 调用AI图片生成接口
+          const imageResponse = await api.AI_Image({
+            prompt: prompt,
+            model: 'jimeng' // 使用即梦模型
+          })
+          
+          if (imageResponse.ok) {
+            const imageResult = await imageResponse.json()
+            console.log('🖼️ AI图片生成响应:', imageResult)
+            
+            if (imageResult.status === 'success' && imageResult.data && (imageResult.data.imageUrl || imageResult.data.image_url)) {
+              // 更新图片元素的src属性，兼容两种字段名
+              const imageUrl = imageResult.data.imageUrl || imageResult.data.image_url
+              imageElement.src = imageUrl
+              totalImagesProcessed++
+              
+              console.log(`✅ 成功为第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} 设置AI生成的图片: ${imageUrl}`)
+              
+              // 触发幻灯片更新，让用户看到图片替换效果
+              slideStore.updateSlide(slide.id, slide)
+              
+            } else {
+              console.warn(`⚠️ 第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} AI图片生成失败:`, imageResult.message || '未知错误')
+            }
+          } else {
+            console.warn(`⚠️ 第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} AI图片生成请求失败`)
+          }
+          
+          // 添加延迟避免请求过于频繁
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          
+        } catch (imageError) {
+          console.error(`❌ 为第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} 生成AI图片时出错:`, imageError)
+          // 继续处理下一个图片元素，不中断整个流程
+        }
+      }
+      
+      console.log(`🎉 第 ${i + 1} 张幻灯片AI图片处理完成`)
+      
+      // 每处理完一张幻灯片，稍作延迟
+      if (i < slides.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
+    
+    console.log(`🎊 所有幻灯片AI图片生成完成！总共处理了 ${totalImagesProcessed} 张图片`)
+    
+  } catch (error) {
+    console.error('❌ 批量处理AI图片生成时出错:', error)
+    // 不抛出错误，避免影响整个PPT生成流程
+  }
 }
 
 // 获取默认模板

@@ -40,7 +40,7 @@
             <img :src="template.cover" :alt="template.name" />
             <div class="preview-overlay">
               <button class="preview-btn" @click.stop="previewTemplate(template)">
-                <IconEye />
+                <IconPreviewOpen />
                 预览
               </button>
             </div>
@@ -81,7 +81,7 @@
             
             <div class="template-stats">
               <div class="stat-item">
-                <IconHeart class="stat-icon" />
+                <IconCheckOne class="stat-icon" />
                 <span>{{ template.likes || 0 }}</span>
               </div>
               <div class="stat-item">
@@ -89,7 +89,7 @@
                 <span>{{ template.downloads || 0 }}</span>
               </div>
               <div class="stat-item">
-                <IconStar class="stat-icon" />
+                <IconCheckOne class="stat-icon" />
                 <span>{{ template.rating || 5.0 }}</span>
               </div>
             </div>
