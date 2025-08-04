@@ -157,6 +157,7 @@ import useScaleCanvas from '@/hooks/useScaleCanvas'
 import useScreening from '@/hooks/useScreening'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useCreateElement from '@/hooks/useCreateElement'
+import useTemplateAIImage from '@/hooks/useTemplateAIImage'
 import api from '@/services'
 import message from '@/utils/message'
 
@@ -380,7 +381,18 @@ const handleManualTemplateSelect = async (template: any) => {
           
           message.success(`成功应用模版：${template.name}`)
           console.log('模版应用成功，已更新幻灯片内容并适配画布')
-        } else {
+          
+          // 检查是否有需要生成AI图片的元素
+          nextTick(() => {
+            if (hasTemplateImages()) {
+              const imageCount = getTemplateImageCount()
+              message.info(`检测到 ${imageCount} 个图片需要AI生成，正在处理...`)
+              // 自动开始AI图片生成
+              processTemplateImages()
+            }
+          })
+        }
+        else {
           console.error('幻灯片元素数据异常:', newSlideData)
           message.warning('模版数据格式异常：缺少有效的元素数据')
         }
@@ -422,95 +434,106 @@ const processElementsWithFixedViewport = (elements: PPTElement[], slideSize?: { 
   return elements.map(element => {
     const scaledElement = { ...element }
     
-    // 缩放位置和尺寸
+    // 缩放位置和尺寸（所有元素都有这些基础属性）
     scaledElement.left = element.left * ratio
     scaledElement.top = element.top * ratio
     scaledElement.width = element.width * ratio
-    scaledElement.height = element.height * ratio
+    
+    // 只有非线条元素才有height属性
+    if (element.type !== 'line' && 'height' in element) {
+      scaledElement.height = element.height * ratio
+    }
     
     // 处理文本元素
     if (element.type === 'text') {
-      if (element.content) {
-        scaledElement.content = scaleHtmlContent(element.content, ratio)
+      const textElement = element as any
+      if (textElement.content) {
+        scaledElement.content = scaleHtmlContent(textElement.content, ratio)
       }
       // 处理文本元素的边框
-      if (element.outline?.width) {
+      if (textElement.outline?.width) {
         scaledElement.outline = {
-          ...element.outline,
-          width: +(element.outline.width * ratio).toFixed(2)
+          ...textElement.outline,
+          width: +(textElement.outline.width * ratio).toFixed(2)
         }
       }
     }
     
     // 处理形状元素
     if (element.type === 'shape') {
+      const shapeElement = element as any
       // 处理形状内的文本
-      if (element.text?.content) {
+      if (shapeElement.text?.content) {
         scaledElement.text = {
-          ...element.text,
-          content: scaleHtmlContent(element.text.content, ratio)
+          ...shapeElement.text,
+          content: scaleHtmlContent(shapeElement.text.content, ratio)
         }
       }
       // 处理形状边框
-      if (element.outline?.width) {
+      if (shapeElement.outline?.width) {
         scaledElement.outline = {
-          ...element.outline,
-          width: +(element.outline.width * ratio).toFixed(2)
+          ...shapeElement.outline,
+          width: +(shapeElement.outline.width * ratio).toFixed(2)
         }
       }
     }
     
     // 处理线条元素
     if (element.type === 'line') {
+      const lineElement = element as any
       // 线条的宽度需要缩放
-      scaledElement.width = +(element.width * ratio).toFixed(2)
+      scaledElement.width = +(lineElement.width * ratio).toFixed(2)
       // 处理线条的起点和终点
-      if (element.start) {
+      if (lineElement.start) {
         scaledElement.start = [
-          element.start[0] * ratio,
-          element.start[1] * ratio
+          lineElement.start[0] * ratio,
+          lineElement.start[1] * ratio
         ]
       }
-      if (element.end) {
+      if (lineElement.end) {
         scaledElement.end = [
-          element.end[0] * ratio,
-          element.end[1] * ratio
+          lineElement.end[0] * ratio,
+          lineElement.end[1] * ratio
         ]
       }
       // 处理折线的中间点
-      if (element.broken2) {
+      if (lineElement.broken2) {
         scaledElement.broken2 = [
-          element.broken2[0] * ratio,
-          element.broken2[1] * ratio
+          lineElement.broken2[0] * ratio,
+          lineElement.broken2[1] * ratio
         ]
       }
     }
     
     // 处理图片元素边框
-    if (element.type === 'image' && element.outline?.width) {
-      scaledElement.outline = {
-        ...element.outline,
-        width: +(element.outline.width * ratio).toFixed(2)
+    if (element.type === 'image') {
+      const imageElement = element as any
+      if (imageElement.outline?.width) {
+        scaledElement.outline = {
+          ...imageElement.outline,
+          width: +(imageElement.outline.width * ratio).toFixed(2)
+        }
       }
     }
     
     // 处理表格元素
     if (element.type === 'table') {
+      const tableElement = element as any
       // 处理表格边框
-      if (element.outline?.width) {
+      if (tableElement.outline?.width) {
         scaledElement.outline = {
-          ...element.outline,
-          width: +(element.outline.width * ratio).toFixed(2)
+          ...tableElement.outline,
+          width: +(tableElement.outline.width * ratio).toFixed(2)
         }
       }
       // 处理单元格最小高度
-      if (element.cellMinHeight) {
-        scaledElement.cellMinHeight = element.cellMinHeight * ratio
+      if (tableElement.cellMinHeight) {
+        scaledElement.cellMinHeight = tableElement.cellMinHeight * ratio
       }
       // 处理表格数据中的字体大小
-      if (element.data) {
-        scaledElement.data = element.data.map(row => 
-          row.map(cell => ({
+      if (tableElement.data) {
+        scaledElement.data = tableElement.data.map((row: any) => 
+          row.map((cell: any) => ({
             ...cell,
             style: {
               ...cell.style,
@@ -521,13 +544,14 @@ const processElementsWithFixedViewport = (elements: PPTElement[], slideSize?: { 
       }
     }
     
-    // 处理阴影
-    if (element.shadow) {
+    // 处理阴影（检查元素是否有shadow属性）
+    const elementWithShadow = element as any
+    if (elementWithShadow.shadow) {
       scaledElement.shadow = {
-        ...element.shadow,
-        h: element.shadow.h * ratio,
-        v: element.shadow.v * ratio,
-        blur: element.shadow.blur * ratio
+        ...elementWithShadow.shadow,
+        h: elementWithShadow.shadow.h * ratio,
+        v: elementWithShadow.shadow.v * ratio,
+        blur: elementWithShadow.shadow.blur * ratio
       }
     }
     
@@ -622,6 +646,7 @@ const { pasteElement } = useCopyAndPasteElement()
 const { enterScreeningFromStart } = useScreening()
 const { updateSlideIndex } = useSlideHandler()
 const { createTextElement, createShapeElement } = useCreateElement()
+const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImage()
 
 // 组件渲染时，如果存在元素焦点，需要清除
 // 这种情况存在于：有焦点元素的情况下进入了放映模式，再退出时，需要清除原先的焦点（因为可能已经切换了页面）
