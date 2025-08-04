@@ -70,6 +70,7 @@ const textTypeOptions = ref<{ label: string; value: TextType | '' }[]>([
   { label: '副标题', value: 'subtitle' },
   { label: '词汇', value: 'vocabulary' },
   { label: '句子', value: 'sentence' },
+  { label: '问题', value: 'question' },
   { label: '正文', value: 'content' },
   { label: '列表项目', value: 'item' },
   { label: '列表项标题', value: 'itemTitle' },
