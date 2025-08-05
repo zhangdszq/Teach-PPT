@@ -364,23 +364,37 @@ const createPPT = async () => {
                   const templateSlides = useResult.data.slides || []
                   const processedSlides = []
                   
-                  // 第一步：先创建所有文字版幻灯片
+                  // 提取模板尺寸信息，优先从根级别获取
+                  const templateSize = {
+                    width: useResult.data.width || useResult.width || 1280,
+                    height: useResult.data.height || useResult.height || 720
+                  }
+                  
+                  console.log('🔍 从use接口获取的模板尺寸:', templateSize)
+                  
+                  // 第一步：先创建所有文字版幻灯片并应用尺寸适配
                   for (const slideData of templateSlides) {
                     // 为每个幻灯片创建新的ID
                     const slideId = slideData.id || `slide_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
                     
+                    // 应用固定视口适配处理元素
+                    const adaptedElements = processElementsWithFixedViewport(slideData.elements || [], templateSize)
+                    
                     // 构建完整的幻灯片对象
                     const finalSlide = {
                       id: slideId,
-                      elements: slideData.elements || [],
+                      elements: adaptedElements,
                       background: slideData.background || { type: 'solid', color: '#ffffff' },
                       aiData: aiData, // 保存原始AI数据
                       templateInfo: useResult.data.templateInfo
                     }
                     
-                    console.log('📝 创建文字版幻灯片:', finalSlide.id, '元素数量:', finalSlide.elements.length)
+                    console.log('📝 创建适配后的幻灯片:', finalSlide.id, '元素数量:', finalSlide.elements.length)
                     processedSlides.push(finalSlide)
                   }
+                  
+                  // 应用固定视口设置
+                  applyFixedViewportSettings(templateSize)
                   
                   // 第二步：将所有文字版幻灯片添加到幻灯片集合
                   const currentSlides = slideStore.slides
@@ -785,6 +799,69 @@ const processAllSlidesAIImages = async (slides: any[]) => {
     console.error('❌ 批量处理AI图片生成时出错:', error)
     // 不抛出错误，避免影响整个PPT生成流程
   }
+}
+
+// 使用固定视口模式处理元素适配
+const processElementsWithFixedViewport = (elements: any[], slideSize?: { width: number; height: number }) => {
+  if (!slideSize) {
+    slideSize = { width: 1280, height: 720 }
+  }
+  
+  const ratio = 1000 / slideSize.width
+  console.log(`🔧 应用固定视口适配: 原始尺寸 ${slideSize.width}x${slideSize.height}, 缩放比例 ${ratio}`)
+  
+  if (Math.abs(slideSize.width - 1000) < 1) {
+    console.log('模板已经是标准尺寸，跳过缩放处理')
+    return elements
+  }
+  
+  return elements.map(element => {
+    const scaledElement = { ...element }
+    
+    scaledElement.left = element.left * ratio
+    scaledElement.top = element.top * ratio
+    scaledElement.width = element.width * ratio
+    
+    if (element.type !== 'line' && 'height' in element) {
+      scaledElement.height = element.height * ratio
+    }
+    
+    if (element.type === 'text' && element.content) {
+      scaledElement.content = scaleHtmlContent(element.content, ratio)
+    }
+    
+    if (element.type === 'shape' && element.text?.content) {
+      scaledElement.text = {
+        ...element.text,
+        content: scaleHtmlContent(element.text.content, ratio)
+      }
+    }
+    
+    return scaledElement
+  })
+}
+
+// 缩放HTML内容中的字体大小
+const scaleHtmlContent = (html: string, ratio: number) => {
+  return html
+    .replace(/font-size:\s*([\d.]+)pt/g, (match, p1) => {
+      return `font-size: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+    })
+    .replace(/font-size:\s*([\d.]+)px/g, (match, p1) => {
+      return `font-size: ${(parseFloat(p1) * ratio).toFixed(1)}px`
+    })
+}
+
+// 应用固定视口设置
+const applyFixedViewportSettings = (slideSize?: { width: number; height: number }) => {
+  if (!slideSize) {
+    slideSize = { width: 1280, height: 720 }
+  }
+  
+  slideStore.setViewportSize(1000)
+  slideStore.setViewportRatio(slideSize.height / slideSize.width)
+  
+  console.log(`🔧 设置固定视口: 宽度 1000px, 比例 ${slideSize.height / slideSize.width}`)
 }
 
 // 获取默认模板
