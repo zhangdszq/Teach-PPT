@@ -39,27 +39,37 @@ export default () => {
       const { slideIndex: currentSlideIndex } = storeToRefs(slidesStore)
       const targetSlideIndex = slideIndex !== undefined ? slideIndex : currentSlideIndex.value
 
+      console.log(`🎯 processTemplateImages: 目标幻灯片索引 ${targetSlideIndex}，传入参数 ${slideIndex}，当前索引 ${currentSlideIndex.value}`)
+
       if (targetSlideIndex < 0 || targetSlideIndex >= slidesStore.slides.length) {
+        console.error(`❌ 幻灯片索引无效: ${targetSlideIndex}，总数: ${slidesStore.slides.length}`)
         message.warning('当前幻灯片无效')
         return
       }
 
       const slide = slidesStore.slides[targetSlideIndex]
+      console.log(`📄 处理幻灯片: 索引 ${targetSlideIndex}, ID ${slide.id}, 元素数量 ${slide.elements.length}`)
       
       // 收集当前幻灯片中需要AI生成图片的元素并添加到队列
       let imageCount = 0
-      slide.elements.forEach(element => {
+      slide.elements.forEach((element, index) => {
         if (element.type === 'image' && element.alt && element.alt.trim() && element.alt !== 'REMOVE_THIS_ELEMENT') {
+          console.log(`✅ 添加图片到队列: 元素${index} ID=${element.id}, alt="${element.alt}", slideId=${slide.id}`)
           addToImageQueue(slide.id, element.id, element.alt.trim(), element as PPTImageElement)
           imageCount++
+        }
+        else if (element.type === 'image') {
+          console.log(`⏭️ 跳过图片元素: 元素${index} ID=${element.id}, alt="${element.alt || 'undefined'}"`)
         }
       })
 
       if (imageCount === 0) {
+        console.log(`ℹ️ 幻灯片 ${targetSlideIndex} 未找到需要生成图片的元素`)
         message.info('当前幻灯片未找到需要生成图片的元素')
         return
       }
 
+      console.log(`🚀 开始处理 ${imageCount} 个图片元素`)
       // 启动图片生成队列处理
       await startImageGeneration()
       

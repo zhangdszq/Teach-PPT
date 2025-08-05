@@ -387,8 +387,8 @@ const handleManualTemplateSelect = async (template: any) => {
             if (hasTemplateImages()) {
               const imageCount = getTemplateImageCount()
               message.info(`检测到 ${imageCount} 个图片需要AI生成，正在处理...`)
-              // 自动开始AI图片生成
-              processTemplateImages()
+              // 自动开始AI图片生成，明确传递当前幻灯片索引
+              processTemplateImages(slideIndex.value)
             }
           })
         }
