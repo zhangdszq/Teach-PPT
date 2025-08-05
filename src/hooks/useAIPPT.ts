@@ -5,6 +5,8 @@ import type { AIPPTSlide } from '@/types/AIPPT'
 import { useSlidesStore } from '@/store'
 import useAddSlidesOrElements from './useAddSlidesOrElements'
 import useSlideHandler from './useSlideHandler'
+import API from '@/services'
+import message from '@/utils/message'
 
 interface ImgPoolItem {
   id: string
@@ -21,6 +23,18 @@ export default () => {
   const imgPool = ref<ImgPoolItem[]>([])
   const transitionIndex = ref(0)
   const transitionTemplate = ref<Slide | null>(null)
+
+  // 图片生成队列相关状态
+  const isGeneratingImages = ref(false)
+  const imageGenerationProgress = ref(0)
+  const totalImageCount = ref(0)
+  const processedImageCount = ref(0)
+  const imageGenerationQueue = ref<Array<{
+    slideId: string
+    elementId: string
+    prompt: string
+    element: PPTImageElement
+  }>>([])
 
   const checkTextType = (el: PPTElement, type: TextType) => {
     return (el.type === 'text' && el.textType === type) || (el.type === 'shape' && el.text && el.text.type === type)
@@ -229,6 +243,286 @@ export default () => {
 
   const presetImgPool = (imgs: ImgPoolItem[]) => {
     imgPool.value = imgs
+  }
+
+  /**
+   * 添加图片到生成队列
+   */
+  const addToImageQueue = (slideId: string, elementId: string, prompt: string, element: PPTImageElement) => {
+    imageGenerationQueue.value.push({
+      slideId,
+      elementId,
+      prompt,
+      element
+    })
+  }
+
+  /**
+   * 处理图片生成队列
+   */
+  const processImageQueue = async (concurrency: number = 2) => {
+    if (isGeneratingImages.value || imageGenerationQueue.value.length === 0) {
+      console.log('⚠️ 队列处理跳过:', { 
+        isGenerating: isGeneratingImages.value, 
+        queueLength: imageGenerationQueue.value.length 
+      })
+      return
+    }
+
+    console.log(`🚀 开始处理图片生成队列，共 ${imageGenerationQueue.value.length} 个任务`)
+    
+    isGeneratingImages.value = true
+    totalImageCount.value = imageGenerationQueue.value.length
+    processedImageCount.value = 0
+    imageGenerationProgress.value = 0
+
+    let currentLoadingMessage = message.success(
+      `正在为 ${totalImageCount.value} 个图片元素生成AI图片，请稍候...`,
+      { duration: 0 }
+    )
+
+    // 创建进度更新定时器
+    const progressTimer = setInterval(() => {
+      if (currentLoadingMessage && processedImageCount.value < totalImageCount.value) {
+        currentLoadingMessage.close()
+        const progress = Math.round((processedImageCount.value / totalImageCount.value) * 100)
+        currentLoadingMessage = message.success(
+          `正在生成图片 ${processedImageCount.value}/${totalImageCount.value} (${progress}%)...`,
+          { duration: 0 }
+        )
+        imageGenerationProgress.value = progress
+      }
+    }, 1000)
+
+    try {
+      // 复制队列，但不立即清空原队列，等处理完成后再清空
+      const queue = [...imageGenerationQueue.value]
+      console.log(`📋 复制队列完成，开始分批处理，并发数: ${concurrency}`)
+
+      let successCount = 0
+      let failureCount = 0
+
+      // 分批处理，每批并发处理指定数量
+      for (let i = 0; i < queue.length; i += concurrency) {
+        const batch = queue.slice(i, i + concurrency)
+        console.log(`🔄 处理第 ${Math.floor(i/concurrency) + 1} 批，包含 ${batch.length} 个任务`)
+        
+        // 并发处理当前批次
+        const batchPromises = batch.map(async (item, batchIndex) => {
+          const globalIndex = i + batchIndex + 1
+          try {
+            console.log(`🖼️ [${globalIndex}/${queue.length}] 开始生成图片: ${item.prompt}`)
+            console.log(`🎯 目标幻灯片ID: ${item.slideId}, 元素ID: ${item.elementId}`)
+            const success = await generateImageForElement(item.element, item.prompt, item.slideId, item.elementId)
+            processedImageCount.value++
+            
+            if (success) {
+              successCount++
+              console.log(`✅ [${globalIndex}/${queue.length}] 图片生成成功: ${item.prompt}`)
+            } else {
+              failureCount++
+              console.log(`❌ [${globalIndex}/${queue.length}] 图片生成失败: ${item.prompt}`)
+            }
+            
+            return { success, item, index: globalIndex }
+          } catch (error) {
+            processedImageCount.value++
+            failureCount++
+            console.error(`❌ [${globalIndex}/${queue.length}] 图片生成异常 (${item.prompt}):`, error)
+            return { success: false, item, error, index: globalIndex }
+          }
+        })
+
+        const batchResults = await Promise.allSettled(batchPromises)
+        console.log(`📊 第 ${Math.floor(i/concurrency) + 1} 批处理完成，结果:`, batchResults.map(r => r.status))
+        
+        // 如果不是最后一批，稍微延迟避免请求过于密集
+        if (i + concurrency < queue.length) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      }
+
+      // 处理完成后清空队列
+      imageGenerationQueue.value = []
+      console.log(`🎊 队列处理完成! 成功: ${successCount}, 失败: ${failureCount}`)
+
+      // 清除进度定时器
+      clearInterval(progressTimer)
+
+      // 关闭loading消息
+      if (currentLoadingMessage) {
+        currentLoadingMessage.close()
+      }
+
+      // 显示完成消息
+      if (successCount > 0) {
+        message.success(`成功生成 ${successCount} 张AI图片！${failureCount > 0 ? ` (${failureCount} 张失败)` : ''}`)
+      } else if (failureCount > 0) {
+        message.error(`图片生成失败，共 ${failureCount} 张图片未能生成`)
+      }
+
+    } catch (error) {
+      console.error('❌ 批量生成图片失败:', error)
+      clearInterval(progressTimer)
+      if (currentLoadingMessage) {
+        currentLoadingMessage.close()
+      }
+      message.error('图片生成过程中出现错误: ' + (error as Error).message)
+    } finally {
+      isGeneratingImages.value = false
+      processedImageCount.value = 0
+      totalImageCount.value = 0
+      imageGenerationProgress.value = 0
+      console.log('🔚 图片生成队列处理结束')
+    }
+  }
+
+  /**
+   * 为单个图片元素生成AI图片
+   */
+  const generateImageForElement = async (element: PPTImageElement, prompt: string, targetSlideId: string, targetElementId: string): Promise<boolean> => {
+    try {
+      console.log(`🎨 开始为元素 ${targetElementId} 生成图片，提示词: "${prompt}"`)
+      console.log(`🎯 目标幻灯片: ${targetSlideId}`)
+      console.log(`📐 图片尺寸: ${element.width || 800}x${element.height || 600}`)
+      
+      const response = await API.AI_Image({ 
+        prompt, 
+        model: 'jimeng',
+        width: element.width || 800,
+        height: element.height || 600
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      console.log(`📡 API响应:`, data)
+      
+      let imageUrl = ''
+      
+      // 处理即梦服务的响应格式
+      if (data.status === 'success' && data.data) {
+        if (data.data.data && data.data.data.image_url) {
+          imageUrl = data.data.data.image_url
+        }
+        else if (data.data.image_url) {
+          imageUrl = data.data.image_url
+        }
+        else {
+          console.error('❌ 响应格式异常，未找到图片URL:', data)
+          throw new Error('响应中未找到图片URL')
+        }
+      }
+      else {
+        console.error('❌ API返回失败状态:', data)
+        throw new Error(data.message || data.errorMessage || '图片生成失败')
+      }
+      
+      if (imageUrl) {
+        console.log(`🔄 更新元素 ${targetElementId} 的图片URL: ${imageUrl}`)
+        console.log(`🎯 目标幻灯片ID: ${targetSlideId}`)
+        
+        // 验证目标幻灯片和元素是否存在
+        const targetSlide = slidesStore.slides.find(slide => slide.id === targetSlideId)
+        if (!targetSlide) {
+          console.error(`❌ 未找到目标幻灯片: ${targetSlideId}`)
+          return false
+        }
+        
+        const targetElement = targetSlide.elements.find(el => el.id === targetElementId)
+        if (!targetElement) {
+          console.error(`❌ 在幻灯片 ${targetSlideId} 中未找到元素: ${targetElementId}`)
+          console.log('🔍 该幻灯片的所有元素ID:', targetSlide.elements.map(el => el.id))
+          return false
+        }
+        
+        // 精确更新指定幻灯片中的指定元素
+        slidesStore.updateElement({
+          id: targetElementId,
+          props: { src: imageUrl },
+          slideId: targetSlideId
+        })
+        
+        console.log(`✅ 元素 ${targetElementId} 在幻灯片 ${targetSlideId} 中图片更新成功`)
+        console.log(`🖼️ 图片URL: ${imageUrl}`)
+        return true
+      }
+      
+      throw new Error('未获取到图片URL')
+    }
+    catch (error) {
+      console.error(`❌ 为元素 ${element.id} 生成图片失败:`, error)
+      console.error(`❌ 失败的提示词: "${prompt}"`)
+      console.error(`❌ 错误详情:`, error)
+      
+      // 不重新抛出错误，而是返回false，让调用方处理
+      return false
+    }
+  }
+
+  /**
+   * 收集幻灯片中需要AI生成图片的元素并添加到队列
+   */
+  const collectAndQueueImages = (slides: Slide[]) => {
+    console.log('🔍 开始收集图片元素，幻灯片数量:', slides.length)
+    
+    // 清空现有队列
+    imageGenerationQueue.value = []
+    
+    slides.forEach((slide, slideIndex) => {
+      console.log(`📄 检查第 ${slideIndex + 1} 张幻灯片 (ID: ${slide.id})，元素数量: ${slide.elements.length}`)
+      
+      const imageElements = slide.elements.filter(el => el.type === 'image')
+      console.log(`🖼️ 找到 ${imageElements.length} 个图片元素`)
+      
+      imageElements.forEach((element, elementIndex) => {
+        const imgElement = element as PPTImageElement
+        console.log(`🔍 检查图片元素 ${elementIndex + 1}:`, {
+          id: imgElement.id,
+          type: imgElement.type,
+          hasAlt: !!imgElement.alt,
+          alt: imgElement.alt,
+          hasSrc: !!imgElement.src,
+          src: imgElement.src?.substring(0, 50) + '...'
+        })
+        
+        // 检查是否需要AI生成图片的条件
+        const needsAIGeneration = (
+          imgElement.type === 'image' && 
+          imgElement.alt && 
+          imgElement.alt.trim() && 
+          imgElement.alt !== 'REMOVE_THIS_ELEMENT'
+        )
+        
+        if (needsAIGeneration) {
+          console.log(`✅ 添加到AI生成队列: ${imgElement.alt}`)
+          addToImageQueue(slide.id, imgElement.id, imgElement.alt.trim(), imgElement)
+        } else {
+          console.log(`❌ 跳过图片元素，原因:`, {
+            hasValidAlt: !!(imgElement.alt && imgElement.alt.trim() && imgElement.alt !== 'REMOVE_THIS_ELEMENT'),
+            needsNewSrc: !imgElement.src || imgElement.src.includes('placeholder') || imgElement.src.includes('default')
+          })
+        }
+      })
+    })
+    
+    // 更新总数计数器
+    totalImageCount.value = imageGenerationQueue.value.length
+    processedImageCount.value = 0
+    
+    console.log(`📊 收集完成，队列中共有 ${imageGenerationQueue.value.length} 个图片待生成`)
+    console.log(`📊 totalImageCount 已更新为: ${totalImageCount.value}`)
+  }
+
+  /**
+   * 启动图片生成队列处理
+   */
+  const startImageGeneration = async () => {
+    if (imageGenerationQueue.value.length > 0) {
+      await processImageQueue(2) // 每次并发处理2个图片
+    }
   }
 
   const AIPPT = (templateSlides: Slide[], _AISlides: AIPPTSlide[], imgs?: ImgPoolItem[]) => {
@@ -525,5 +819,13 @@ export default () => {
     AIPPT,
     getMdContent,
     getJSONContent,
+    // 图片生成队列相关
+    isGeneratingImages,
+    imageGenerationProgress,
+    totalImageCount,
+    processedImageCount,
+    addToImageQueue,
+    startImageGeneration,
+    collectAndQueueImages,
   }
 }

@@ -134,7 +134,7 @@ import StyleSelectDialog from './StyleSelectDialog.vue'
 const mainStore = useMainStore()
 const slideStore = useSlidesStore()
 const { templates } = storeToRefs(slideStore)
-const { AIPPT, presetImgPool, getMdContent } = useAIPPT()
+const { AIPPT, presetImgPool, getMdContent, collectAndQueueImages, startImageGeneration, totalImageCount, processedImageCount } = useAIPPT()
 
 const grade = ref('1年级')
 const style = ref('儿童友好')
@@ -718,82 +718,24 @@ const processAIDataForDisplay = (aiData: any) => {
   return processedData
 }
 
-// 批量处理所有幻灯片的AI图片生成
+// 批量处理所有幻灯片的AI图片生成 - 使用队列方式
 const processAllSlidesAIImages = async (slides: any[]) => {
   try {
-    console.log(`🖼️ 开始批量处理 ${slides.length} 张幻灯片的AI图片生成`)
+    console.log(`🖼️ 开始收集 ${slides.length} 张幻灯片中需要AI生成的图片`)
     
-    let totalImagesProcessed = 0
+    // 收集所有需要AI生成图片的元素并添加到队列
+    collectAndQueueImages(slides)
     
-    // 逐页处理AI图片生成
-    for (let i = 0; i < slides.length; i++) {
-      const slide = slides[i]
-      console.log(`📄 处理第 ${i + 1}/${slides.length} 张幻灯片: ${slide.id}`)
-      
-      // 查找当前幻灯片中需要AI生成图片的元素
-      const imageElements = slide.elements.filter((element: any) => 
-        element.type === 'image' && element.alt && element.alt.trim() !== '' && element.alt !== 'REMOVE_THIS_ELEMENT'
-      )
-      
-      if (imageElements.length === 0) {
-        console.log(`📷 第 ${i + 1} 张幻灯片无需AI生成图片`)
-        continue
-      }
-      
-      console.log(`🎯 第 ${i + 1} 张幻灯片找到 ${imageElements.length} 个需要AI生成图片的元素`)
-      
-      // 为当前幻灯片的每个图片元素生成AI图片
-      for (const imageElement of imageElements) {
-        try {
-          const prompt = imageElement.alt
-          console.log(`🎨 为第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} 生成AI图片，提示词: ${prompt}`)
-          
-          // 调用AI图片生成接口
-          const imageResponse = await api.AI_Image({
-            prompt: prompt,
-            model: 'jimeng' // 使用即梦模型
-          })
-          
-          if (imageResponse.ok) {
-            const imageResult = await imageResponse.json()
-            console.log('🖼️ AI图片生成响应:', imageResult)
-            
-            if (imageResult.status === 'success' && imageResult.data && (imageResult.data.imageUrl || imageResult.data.image_url)) {
-              // 更新图片元素的src属性，兼容两种字段名
-              const imageUrl = imageResult.data.imageUrl || imageResult.data.image_url
-              imageElement.src = imageUrl
-              totalImagesProcessed++
-              
-              console.log(`✅ 成功为第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} 设置AI生成的图片: ${imageUrl}`)
-              
-              // 触发幻灯片更新，让用户看到图片替换效果
-              slideStore.updateSlide(slide.id, slide)
-              
-            } else {
-              console.warn(`⚠️ 第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} AI图片生成失败:`, imageResult.message || '未知错误')
-            }
-          } else {
-            console.warn(`⚠️ 第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} AI图片生成请求失败`)
-          }
-          
-          // 添加延迟避免请求过于频繁
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          
-        } catch (imageError) {
-          console.error(`❌ 为第 ${i + 1} 张幻灯片的图片元素 ${imageElement.id} 生成AI图片时出错:`, imageError)
-          // 继续处理下一个图片元素，不中断整个流程
-        }
-      }
-      
-      console.log(`🎉 第 ${i + 1} 张幻灯片AI图片处理完成`)
-      
-      // 每处理完一张幻灯片，稍作延迟
-      if (i < slides.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      }
+    console.log(`📋 图片生成队列收集完成，共 ${totalImageCount.value} 个图片需要生成`)
+    
+    // 启动图片生成队列处理
+    if (totalImageCount.value > 0) {
+      console.log('🚀 启动图片生成队列处理...')
+      await startImageGeneration()
+      console.log('🎊 所有图片生成完成！')
+    } else {
+      console.log('📷 未找到需要AI生成的图片')
     }
-    
-    console.log(`🎊 所有幻灯片AI图片生成完成！总共处理了 ${totalImagesProcessed} 张图片`)
     
   } catch (error) {
     console.error('❌ 批量处理AI图片生成时出错:', error)

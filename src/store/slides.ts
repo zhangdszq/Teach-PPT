@@ -210,11 +210,29 @@ export const useSlidesStore = defineStore('slides', {
       const elIdList = typeof id === 'string' ? [id] : id
 
       const slideIndex = slideId ? this.slides.findIndex(item => item.id === slideId) : this.slideIndex
+      
+      // 检查slideIndex是否有效
+      if (slideIndex < 0 || slideIndex >= this.slides.length) {
+        console.error(`❌ updateElement失败: 无效的幻灯片索引 ${slideIndex}`, {
+          slideId,
+          totalSlides: this.slides.length,
+          currentSlideIndex: this.slideIndex
+        })
+        return
+      }
+      
       const slide = this.slides[slideIndex]
+      if (!slide) {
+        console.error(`❌ updateElement失败: 幻灯片不存在`, { slideIndex, slideId })
+        return
+      }
+      
       const elements = slide.elements.map(el => {
         return elIdList.includes(el.id) ? { ...el, ...props } : el
       })
       this.slides[slideIndex].elements = (elements as PPTElement[])
+      
+      console.log(`✅ updateElement成功: 幻灯片 ${slideId || 'current'} 中的元素 ${elIdList} 已更新`)
     },
   
     removeElementProps(data: RemovePropData) {
