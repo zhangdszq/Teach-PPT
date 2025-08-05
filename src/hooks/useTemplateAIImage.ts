@@ -134,17 +134,26 @@ export default () => {
     try {
       const response = await API.AI_Image({ 
         prompt, 
-        model: 'jimeng' // 默认使用即梦模型
+        model: 'jimeng', // 默认使用即梦模型
+        width: element.width || 800,
+        height: element.height || 600
       })
       const data = await response.json()
       
       let imageUrl = ''
       
-      // 处理即梦服务的响应格式
-      if (data.status === 'success' && data.data && data.data.image_url) {
-        imageUrl = data.data.image_url
+      // 处理即梦服务的响应格式 - 处理嵌套的data结构
+      if (data.status === 'success' && data.data) {
+        // 检查是否有嵌套的data结构
+        if (data.data.data && data.data.data.image_url) {
+          imageUrl = data.data.data.image_url
+        } else if (data.data.image_url) {
+          imageUrl = data.data.image_url
+        } else {
+          throw new Error('响应中未找到图片URL')
+        }
       } else {
-        throw new Error(data.message || data.error_message || '图片生成失败')
+        throw new Error(data.message || data.errorMessage || '图片生成失败')
       }
       
       if (imageUrl) {

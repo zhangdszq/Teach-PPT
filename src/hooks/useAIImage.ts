@@ -14,7 +14,7 @@ export default () => {
 
   const isGenerating = ref(false)
 
-  const generateAIImage = async (prompt: string, model: string = 'jimeng') => {
+  const generateAIImage = async (prompt: string, model: string = 'jimeng', width?: number, height?: number) => {
     if (!handleElementId.value) {
       message.error('请先选择一个图片元素')
       return false
@@ -31,31 +31,44 @@ export default () => {
       return false
     }
 
+    // 如果没有传递宽高，使用元素的宽高或默认值
+    const imageWidth = width || element.width || 800
+    const imageHeight = height || element.height || 600
+
     isGenerating.value = true
     const loadingMessage = message.success('正在生成图片，请稍候...', { duration: 0 })
 
     try {
-      const response = await API.AI_Image({ prompt, model })
+      const response = await API.AI_Image({ 
+        prompt, 
+        model, 
+        width: imageWidth, 
+        height: imageHeight 
+      })
       const data = await response.json()
       
       let imageUrl = ''
       
       // 处理不同服务的响应格式
       if (model === 'jimeng') {
-        // 火山引擎即梦服务的响应格式
-        if (data.status === 'success' && data.data && data.data.image_url) {
-          imageUrl = data.data.image_url
+        // 火山引擎即梦服务的响应格式 - 处理嵌套的data结构
+        if (data.status === 'success' && data.data) {
+          // 检查是否有嵌套的data结构
+          if (data.data.data && data.data.data.image_url) {
+            imageUrl = data.data.data.image_url
+          } else if (data.data.image_url) {
+            imageUrl = data.data.image_url
+          } else {
+            throw new Error('响应中未找到图片URL')
+          }
+        } else {
+          throw new Error(data.message || data.errorMessage || '即梦图片生成失败')
         }
-        else {
-          throw new Error(data.message || data.error_message || '即梦图片生成失败')
-        }
-      }
-      else {
+      } else {
         // 其他AI服务的响应格式
         if (data.success && data.data && data.data.url) {
           imageUrl = data.data.url
-        }
-        else {
+        } else {
           throw new Error(data.message || '图片生成失败')
         }
       }

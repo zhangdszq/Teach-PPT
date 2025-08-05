@@ -28,6 +28,8 @@ interface AIWritingPayload {
 interface AIImagePayload {
   prompt: string
   model?: string
+  width?: number
+  height?: number
 }
 
 interface TemplateMatchPayload {
@@ -112,6 +114,8 @@ const api = {
   AI_Image({
     prompt,
     model = 'jimeng',
+    width,
+    height,
   }: AIImagePayload): Promise<any> {
     // 调用我们新创建的后端服务
     return fetch(`${SERVER_URL}/api/image/generate`, {
@@ -122,6 +126,8 @@ const api = {
       body: JSON.stringify({
         prompt,
         model,
+        width,
+        height,
       }),
     })
   },
