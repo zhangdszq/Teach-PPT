@@ -2,14 +2,8 @@
   <div class="export-server-dialog">
     <div class="thumbnails-view">
       <div class="thumbnails">
-        <ThumbnailSlide 
-          class="thumbnail" 
-          v-for="slide in renderSlides" 
-          :key="slide.id" 
-          :slide="slide" 
-          :size="1600" 
-          :visible="true"
-        />
+        <ThumbnailSlide class="thumbnail" v-for="slide in renderSlides" :key="slide.id" :slide="slide" :size="1600"
+          :visible="true" />
       </div>
     </div>
     <div class="configs">
@@ -52,6 +46,16 @@
         </div>
       </div>
 
+      <div class="row">
+        <div class="title">图片质量：</div>
+        <div class="config-item">
+          <div class="quality-control">
+            <Slider v-model:value="imageQuality" :min="0.1" :max="1" :step="0.1" class="quality-slider" />
+            <div class="quality-text">{{ Math.round(imageQuality * 100) }}%</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 进度显示 -->
       <div class="row" v-if="saving">
         <div class="title">保存进度：</div>
@@ -64,18 +68,26 @@
           </div>
         </div>
       </div>
+
+      <div class="row" v-if="showConfirmSave">
+        <div class="title">上传状态：</div>
+        <div class="config-item">
+          <div class="upload-status">
+            <div class="status-text">已成功上传 {{ uploadedSlides.length }} 页</div>
+            <div class="status-detail">请点击"确认保存"按钮完成最终保存</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="btns">
-      <Button 
-        class="btn save" 
-        type="primary" 
-        @click="saveToServer()" 
-        :disabled="saving"
-      >
-        {{ saving ? '保存中...' : '保存' }}
+      <Button class="btn save" type="primary" @click="saveToServer()" :disabled="saving || showConfirmSave" v-if="!showConfirmSave">
+        {{ saving ? '保存中...' : '开始上传' }}
       </Button>
-      <Button class="btn close" @click="emit('close')">关闭</Button>
+      <Button class="btn confirm-save" type="primary" @click="confirmSave()" v-if="showConfirmSave">
+        确认保存 ({{ uploadedSlides.length }} 页)
+      </Button>
+      <Button class="btn close" @click="handleClose()" :disabled="saving">关闭</Button>
     </div>
 
     <FullscreenSpin :loading="saving" :tip="progressText" />
@@ -85,8 +97,9 @@
 <script lang="ts" setup>
 import { computed, ref, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
+import { nanoid } from 'nanoid'
 import { useSlidesStore } from '@/store'
-import api from '@/services/config'
+import api from '@/services'
 import message from '@/utils/message'
 
 import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
@@ -102,6 +115,22 @@ const emit = defineEmits<{
   (event: 'close'): void
 }>()
 
+// 重置状态
+const resetState = () => {
+  saving.value = false
+  currentSlideIndex.value = 0
+  totalSlides.value = 0
+  uploadedSlides.value = []
+  showConfirmSave.value = false
+  pptId.value = ''
+}
+
+// 关闭对话框
+const handleClose = () => {
+  resetState()
+  emit('close')
+}
+
 const slidesStore = useSlidesStore()
 const { slides, currentSlide, title } = storeToRefs(slidesStore)
 
@@ -113,9 +142,13 @@ const ignoreWebfont = ref(true)
 const pptTitle = ref(title.value || 'PPT演示文稿')
 const selectedTextbook = ref('')
 const selectedGrade = ref('')
+const imageQuality = ref(1) // 默认95%质量，保持高质量但可控
 const saving = ref(false)
 const currentSlideIndex = ref(0)
 const totalSlides = ref(0)
+const uploadedSlides = ref<any[]>([])
+const showConfirmSave = ref(false)
+const pptId = ref<string>('')
 
 const renderSlides = computed(() => {
   if (rangeType.value === 'all') return slides.value
@@ -137,14 +170,17 @@ const progressText = computed(() => {
   if (currentSlideIndex.value <= totalSlides.value) {
     return `正在处理第 ${currentSlideIndex.value} 页，共 ${totalSlides.value} 页`
   }
-  return '正在完成保存...'
+  if (showConfirmSave.value) {
+    return `已上传 ${uploadedSlides.value.length} 页，等待确认保存`
+  }
+  return '正在处理...'
 })
 
 // 等待渲染完成的函数
 const waitForRender = async (): Promise<void> => {
   // 等待Vue的响应式更新完成
   await nextTick()
-  
+
   // 等待浏览器完成渲染
   await new Promise<void>(resolve => {
     requestAnimationFrame(() => {
@@ -159,7 +195,7 @@ const waitForRender = async (): Promise<void> => {
 const waitForSlideLoad = async (): Promise<void> => {
   // 首先等待基本渲染
   await waitForRender()
-  
+
   // 查找canvas元素并等待渲染
   const canvasElements = document.querySelectorAll('canvas')
   const canvasPromises = Array.from(canvasElements).map(() => {
@@ -167,7 +203,7 @@ const waitForSlideLoad = async (): Promise<void> => {
       setTimeout(resolve, 300) // 给canvas足够的渲染时间
     })
   })
-  
+
   // 等待图片加载
   const images = document.querySelectorAll('img')
   const imagePromises = Array.from(images).map(img => {
@@ -178,7 +214,7 @@ const waitForSlideLoad = async (): Promise<void> => {
       setTimeout(resolve, 2000) // 设置超时
     })
   })
-  
+
   // 等待SVG渲染
   const svgs = document.querySelectorAll('svg')
   const svgPromises = Array.from(svgs).map(() => {
@@ -186,53 +222,33 @@ const waitForSlideLoad = async (): Promise<void> => {
       setTimeout(resolve, 200)
     })
   })
-  
+
   // 等待所有资源加载完成
   await Promise.all([...imagePromises, ...svgPromises, ...canvasPromises])
-  
+
   // 最后再等待一次渲染确保所有内容都已显示
   await waitForRender()
 }
 
-// 压缩图片
-const compressImage = (canvas: HTMLCanvasElement, maxWidth: number = 800, maxHeight: number = 600, quality: number = 1): string => {
+// 处理图片质量（保持原始尺寸，仅调整质量）
+const processImageQuality = (canvas: HTMLCanvasElement, quality: number = 0.9): string => {
   const { width, height } = canvas
-  
-  // 计算压缩比例
-  let scale = 1
-  if (width > maxWidth || height > maxHeight) {
-    scale = Math.min(maxWidth / width, maxHeight / height)
-  }
-  
-  const newWidth = Math.floor(width * scale)
-  const newHeight = Math.floor(height * scale)
-  
-  console.log(`🔧 图片压缩: ${width}x${height} -> ${newWidth}x${newHeight}, 压缩比: ${scale.toFixed(2)}`)
-  
-  // 创建新的canvas进行压缩
-  const compressedCanvas = document.createElement('canvas')
-  compressedCanvas.width = newWidth
-  compressedCanvas.height = newHeight
-  
-  const ctx = compressedCanvas.getContext('2d')
+
+  console.log(`🔧 图片质量处理: ${width}x${height}, 质量: ${Math.round(quality * 100)}%`)
+
+  // 直接使用原始canvas，不进行尺寸压缩
+  const ctx = canvas.getContext('2d')
   if (!ctx) {
     console.warn('⚠️ 无法获取canvas上下文，使用原图')
     return canvas.toDataURL('image/jpeg', quality)
   }
-  
-  // 设置高质量的图像缩放
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  
-  // 绘制压缩后的图像
-  ctx.drawImage(canvas, 0, 0, newWidth, newHeight)
-  
-  // 转换为JPEG格式以进一步压缩
-  const compressedBase64 = compressedCanvas.toDataURL('image/jpeg', quality)
-  
-  console.log(`📦 压缩完成: ${Math.round(compressedBase64.length / 1024)}KB`)
-  
-  return compressedBase64
+
+  // 转换为JPEG格式，使用用户设置的质量参数
+  const processedBase64 = canvas.toDataURL('image/jpeg', quality)
+
+  console.log(`📦 质量处理完成: ${Math.round(processedBase64.length / 1024)}KB`)
+
+  return processedBase64
 }
 
 // 动态加载html2canvas库
@@ -242,7 +258,7 @@ const loadHtml2Canvas = (): Promise<void> => {
       resolve()
       return
     }
-    
+
     const script = document.createElement('script')
     script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'
     script.onload = () => {
@@ -261,7 +277,7 @@ const loadHtml2Canvas = (): Promise<void> => {
 const captureWithSVG = async (element: HTMLElement): Promise<string | null> => {
   try {
     const { width, height } = element.getBoundingClientRect()
-    
+
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
         <foreignObject width="100%" height="100%">
@@ -271,10 +287,10 @@ const captureWithSVG = async (element: HTMLElement): Promise<string | null> => {
         </foreignObject>
       </svg>
     `
-    
+
     const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
     const svgUrl = URL.createObjectURL(svgBlob)
-    
+
     return await new Promise((resolve) => {
       const img = new Image()
       img.onload = () => {
@@ -297,7 +313,7 @@ const captureWithSVG = async (element: HTMLElement): Promise<string | null> => {
       }
       img.src = svgUrl
     })
-    
+
   }
   catch (error) {
     console.error('SVG截图失败:', error)
@@ -316,10 +332,10 @@ declare global {
 const captureSlideImage = async (): Promise<string | null> => {
   try {
     console.log('🔍 开始DOM结构调试...')
-    
+
     // 扩展搜索范围，查找所有可能的元素
     const selectors = [
-      '.viewport-wrapper', 
+      '.viewport-wrapper',
       '.viewport',
       '.slide-content',
       '.editor-content',
@@ -327,9 +343,9 @@ const captureSlideImage = async (): Promise<string | null> => {
       '[class*="viewport"]',
       '[class*="slide"]'
     ]
-    
+
     let targetElement: HTMLElement | null = null
-    
+
     for (const selector of selectors) {
       const element = document.querySelector(selector) as HTMLElement
       if (element && element.offsetWidth > 0 && element.offsetHeight > 0) {
@@ -342,42 +358,42 @@ const captureSlideImage = async (): Promise<string | null> => {
         break
       }
     }
-    
+
     if (!targetElement) {
       console.error('❌ 未找到任何可用的页面元素')
       // 尝试使用整个body作为最后的备选方案
       targetElement = document.body
       console.log('🔄 使用body元素作为备选方案')
     }
-    
+
     let capturedCanvas: HTMLCanvasElement | null = null
-    
+
     // 方法1: 尝试使用html2canvas（如果可用）
     if (window.html2canvas) {
       console.log('🎨 使用html2canvas进行截图...')
       try {
         capturedCanvas = await window.html2canvas(targetElement, {
           backgroundColor: '#ffffff',
-          scale: 0.8, // 适中的缩放比例
+          scale: 2, // 提高缩放比例以获得更清晰的图片
           useCORS: true,
           allowTaint: true,
           width: targetElement.offsetWidth,
           height: targetElement.offsetHeight,
           logging: false
         })
-        
+
         console.log('✅ html2canvas截图成功')
       }
       catch (html2canvasError) {
         console.warn('⚠️ html2canvas截图失败:', html2canvasError)
       }
     }
-    
+
     // 方法2: 查找现有的canvas元素
     if (!capturedCanvas) {
       const canvasElements = document.querySelectorAll('canvas')
       console.log('🔍 找到canvas元素数量:', canvasElements.length)
-      
+
       for (let i = 0; i < canvasElements.length; i++) {
         const canvas = canvasElements[i] as HTMLCanvasElement
         if (canvas.width > 0 && canvas.height > 0) {
@@ -394,7 +410,7 @@ const captureSlideImage = async (): Promise<string | null> => {
         }
       }
     }
-    
+
     // 方法3: 动态加载html2canvas并重试
     if (!capturedCanvas && !window.html2canvas) {
       console.log('📦 尝试动态加载html2canvas...')
@@ -403,7 +419,7 @@ const captureSlideImage = async (): Promise<string | null> => {
         if (window.html2canvas) {
           capturedCanvas = await window.html2canvas(targetElement, {
             backgroundColor: '#ffffff',
-            scale: 0.8,
+            scale: 2,
             useCORS: true,
             allowTaint: true
           })
@@ -414,7 +430,7 @@ const captureSlideImage = async (): Promise<string | null> => {
         console.warn('⚠️ 动态加载html2canvas失败:', loadError)
       }
     }
-    
+
     // 方法4: 使用SVG + foreignObject (实验性)
     if (!capturedCanvas) {
       console.log('🧪 尝试使用SVG方法截图...')
@@ -428,7 +444,7 @@ const captureSlideImage = async (): Promise<string | null> => {
             img.onerror = reject
             img.src = svgImage
           })
-          
+
           const canvas = document.createElement('canvas')
           canvas.width = img.width
           canvas.height = img.height
@@ -444,33 +460,24 @@ const captureSlideImage = async (): Promise<string | null> => {
         console.warn('⚠️ SVG方法截图失败:', svgError)
       }
     }
-    
-    // 如果获取到了canvas，进行压缩处理
+
+    // 如果获取到了canvas，进行质量处理
     if (capturedCanvas) {
       const originalSize = Math.round(capturedCanvas.toDataURL('image/png').length / 1024)
       console.log(`📏 原始图片大小: ${originalSize}KB`)
-      
-      // 压缩图片：最大宽度800px，最大高度600px，质量0.6
-      const compressedBase64 = compressImage(capturedCanvas, 800, 600, quality.value)
-      const compressedSize = Math.round(compressedBase64.length / 1024)
-      
-      console.log(`✅ 图片压缩完成: ${originalSize}KB -> ${compressedSize}KB (压缩率: ${((1 - compressedSize / originalSize) * 100).toFixed(1)}%)`)
-      
-      // 如果压缩后仍然太大（超过200KB），进一步压缩
-      if (compressedSize > 200) {
-        console.log('📦 图片仍然较大，进行二次压缩...')
-        const furtherCompressed = compressImage(capturedCanvas, 600, 450, 1)
-        const finalSize = Math.round(furtherCompressed.length / 1024)
-        console.log(`✅ 二次压缩完成: ${compressedSize}KB -> ${finalSize}KB`)
-        return furtherCompressed
-      }
-      
-      return compressedBase64
+
+      // 使用用户设置的图片质量进行处理，保持原始尺寸不压缩
+      const processedBase64 = processImageQuality(capturedCanvas, imageQuality.value)
+      const processedSize = Math.round(processedBase64.length / 1024)
+
+      console.log(`✅ 图片质量处理完成: ${originalSize}KB -> ${processedSize}KB (质量: ${Math.round(imageQuality.value * 100)}%)`)
+
+      return processedBase64
     }
-    
+
     console.error('❌ 所有截图方法都失败了')
     return null
-    
+
   }
   catch (error) {
     console.error('❌ 截图过程发生错误:', error)
@@ -478,118 +485,194 @@ const captureSlideImage = async (): Promise<string | null> => {
   }
 }
 
-// 保存到服务器
+// 单页上传到服务器
+const uploadSingleSlide = async (slideIndex: number, imageData: string, slideData: any) => {
+  try {
+    const postData = {
+      pptId: pptId.value,
+      title: pptTitle.value.trim(),
+      format: format.value,
+      imageQuality: imageQuality.value,
+      rangeType: rangeType.value,
+      textbook: selectedTextbook.value,
+      grade: selectedGrade.value,
+      slideIndex: slideIndex,
+      slideId: slideData.id,
+      imageData: imageData,
+      slideData: slideData
+    }
+
+    console.log(`📤 上传第 ${slideIndex} 页到服务器...`)
+    const response = await api.uploadSlide(postData) as any
+    
+    if (response && response.status === 'success' && response.data && response.data.success) {
+      console.log(`✅ 第 ${slideIndex} 页上传成功`)
+      return response
+    }
+    throw new Error(`第 ${slideIndex} 页上传失败`)
+  }
+  catch (error) {
+    console.error(`❌ 第 ${slideIndex} 页上传失败:`, error)
+    throw error
+  }
+}
+
+// 最终确认保存
+const confirmSave = async () => {
+  if (uploadedSlides.value.length === 0) {
+    message.error('没有已上传的幻灯片')
+    return
+  }
+
+  try {
+    const postData = {
+      pptId: pptId.value,
+      title: pptTitle.value.trim(),
+      format: format.value,
+      imageQuality: imageQuality.value.toString(),
+      rangeType: rangeType.value,
+      textbook: selectedTextbook.value,
+      grade: selectedGrade.value
+    }
+
+    console.log('📤 发送最终确认保存请求...')
+    const response = await api.confirmSave(postData) as any
+
+    if (response && response.status === 'success' && response.data && response.data.success) {
+      message.success(`PPT已成功保存到服务器！共 ${uploadedSlides.value.length} 页`)
+      
+      if (response.data.id) {
+        message.success(`保存成功，ID: ${response.data.id}`)
+      }
+      
+      // 保存成功后关闭对话框
+      setTimeout(() => {
+        handleClose()
+      }, 1500)
+      return
+    }
+    throw new Error('最终保存确认失败')
+  }
+  catch (error) {
+    console.error('❌ 最终保存确认失败:', error)
+    message.error(error instanceof Error ? error.message : '最终保存确认失败')
+  }
+}
+
+// 保存到服务器（修改为逐页上传）
 const saveToServer = async () => {
   if (!pptTitle.value.trim()) {
     message.error('请输入PPT标题')
     return
   }
+  
+  if (!selectedTextbook.value) {
+    message.error('请选择教材')
+    return
+  }
+  
+  if (!selectedGrade.value) {
+    message.error('请选择年级')
+    return
+  }
 
+  // 生成唯一的PPT ID
+  pptId.value = nanoid()
+  
   saving.value = true
   currentSlideIndex.value = 0
   totalSlides.value = renderSlides.value.length
-  
+  uploadedSlides.value = []
+
   // 保存当前slide索引，完成后恢复
   const originalSlideIndex = slidesStore.slideIndex
 
   try {
-    console.log(`🚀 开始串行截图，共 ${totalSlides.value} 页`)
-    
-    const slides = []
-    
+    console.log(`🚀 开始逐页截图上传，共 ${totalSlides.value} 页`)
+
     // 串行处理每个slide
     for (let i = 0; i < renderSlides.value.length; i++) {
       currentSlideIndex.value = i + 1
       console.log(`📸 开始处理第 ${i + 1} 页`)
-      
+
       // 获取目标slide的索引
       let targetSlideIndex = i
       if (rangeType.value === 'current') {
         targetSlideIndex = slidesStore.slideIndex
-      } else if (rangeType.value === 'custom') {
+      }
+      else if (rangeType.value === 'custom') {
         targetSlideIndex = range.value[0] - 1 + i
       }
-      
+
       // 切换到目标slide
       slidesStore.updateSlideIndex(targetSlideIndex)
       console.log(`🔄 切换到第 ${targetSlideIndex + 1} 页`)
-      
+
       // 等待DOM更新和slide完全加载
       await nextTick()
       await waitForSlideLoad()
-      
+
       // 添加额外等待时间确保渲染完成
-       await new Promise<void>(resolve => setTimeout(resolve, 500))
-       
-       // 截图当前页面
-       let imageData = null
-       let retryCount = 0
-       const maxRetries = 3
-       
-       while (!imageData && retryCount <= maxRetries) {
-         if (retryCount > 0) {
-           console.log(`第 ${i + 1} 页截图重试第 ${retryCount} 次`)
-           // 重试前再次等待
-           await waitForSlideLoad()
-           await new Promise<void>(resolve => setTimeout(resolve, 300))
-         }
-         
-         imageData = await captureSlideImage()
-         retryCount++
-       }
-       
-       if (imageData) {
-         slides.push({
-           index: i + 1,
-           slideId: renderSlides.value[i].id,
-           imageData: imageData
-         })
-         console.log(`✅ 第 ${i + 1} 页截图成功`)
-       }
-       else {
-         console.error(`❌ 第 ${i + 1} 页截图失败，已重试 ${maxRetries} 次`)
-         // 即使某页失败也继续处理下一页
-       }
-     }
+      await new Promise<void>(resolve => setTimeout(resolve, 500))
 
-    if (slides.length === 0) {
-      throw new Error('所有幻灯片截图都失败了')
+      // 截图当前页面
+      let imageData = null
+      let retryCount = 0
+      const maxRetries = 3
+
+      while (!imageData && retryCount <= maxRetries) {
+        if (retryCount > 0) {
+          console.log(`第 ${i + 1} 页截图重试第 ${retryCount} 次`)
+          // 重试前再次等待
+          await waitForSlideLoad()
+          await new Promise<void>(resolve => setTimeout(resolve, 300))
+        }
+
+        imageData = await captureSlideImage()
+        retryCount++
+      }
+
+      if (imageData) {
+        // 立即上传当前页
+        try {
+          const slideData = renderSlides.value[i]
+          const uploadResult = await uploadSingleSlide(i + 1, imageData, slideData)
+          uploadedSlides.value.push({
+            index: i + 1,
+            slideId: slideData.id,
+            id: uploadResult.id
+          })
+          console.log(`✅ 第 ${i + 1} 页截图并上传成功`)
+        }
+        catch (uploadError) {
+          console.error(`❌ 第 ${i + 1} 页上传失败:`, uploadError)
+          // 继续处理下一页，但记录失败
+        }
+      }
+      else {
+        console.error(`❌ 第 ${i + 1} 页截图失败，已重试 ${maxRetries} 次`)
+        // 即使某页失败也继续处理下一页
+      }
     }
 
-    // 准备发送到服务器的数据
-    const postData = {
-      title: pptTitle.value.trim(),
-      format: format.value,
-      quality: quality.value,
-      slideCount: slides.length,
-      rangeType: rangeType.value,
-      textbook: selectedTextbook.value,
-      grade: selectedGrade.value,
-      slides: slides
-    }
-
-    // 发送到服务器
-    console.log('📤 开始上传到服务器...')
-    currentSlideIndex.value = totalSlides.value + 1
-    const response = await api.post('/api/ppt/save', postData) as any
-    
     saving.value = false
     // 恢复原来的slide索引
     slidesStore.updateSlideIndex(originalSlideIndex)
-    
-    console.log('🎉 保存完成！')
-    message.success(`PPT已成功保存到服务器！共 ${slides.length} 页`)
-    
-    // 可以在这里处理服务器返回的数据，比如显示保存的ID等
-    if (response && response.id) {
-      message.success(`保存成功，ID: ${response.id}`)
+
+    if (uploadedSlides.value.length === 0) {
+      throw new Error('所有幻灯片截图或上传都失败了')
     }
+
+    console.log('🎉 所有页面处理完成！')
+    message.success(`已成功上传 ${uploadedSlides.value.length} 页到服务器，请点击确认保存按钮完成最终保存`)
+    showConfirmSave.value = true
+
   }
   catch (error) {
     saving.value = false
     // 恢复原来的slide索引
     slidesStore.updateSlideIndex(originalSlideIndex)
-    
+
     console.error('❌ 保存到服务器失败:', error)
     message.error(error instanceof Error ? error.message : '保存到服务器失败')
   }
@@ -606,6 +689,7 @@ const saveToServer = async () => {
   position: relative;
   overflow: hidden;
 }
+
 .thumbnails-view {
   @include absolute-0();
 
@@ -615,6 +699,7 @@ const saveToServer = async () => {
     @include absolute-0();
   }
 }
+
 .configs {
   width: 350px;
   height: calc(100% - 100px);
@@ -641,6 +726,7 @@ const saveToServer = async () => {
       left: 0;
     }
   }
+
   .config-item {
     flex: 1;
   }
@@ -650,22 +736,40 @@ const saveToServer = async () => {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #d9d9d9;
-    border-radius: 6px;
+    border-radius: 4px;
     background-color: #fff;
     font-size: 14px;
     color: #333;
     outline: none;
-    transition: border-color 0.3s;
 
     &:hover {
       border-color: #40a9ff;
     }
 
     &:focus {
-      border-color: #1890ff;
+      border-color: #40a9ff;
       box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
     }
   }
+
+  .quality-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .quality-slider {
+      flex: 1;
+    }
+
+    .quality-text {
+      min-width: 40px;
+      font-size: 14px;
+      color: #666;
+      text-align: right;
+    }
+  }
+
+
 
   .progress-info {
     width: 100%;
@@ -690,7 +794,24 @@ const saveToServer = async () => {
       }
     }
   }
+
+  .upload-status {
+    width: 100%;
+
+    .status-text {
+      font-size: 14px;
+      color: #d14424;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .status-detail {
+      font-size: 12px;
+      color: #666;
+    }
+  }
 }
+
 .btns {
   width: 300px;
   height: 100px;
@@ -702,6 +823,18 @@ const saveToServer = async () => {
   .save {
     flex: 1;
   }
+
+  .confirm-save {
+    flex: 1;
+    background-color: #52c41a;
+    border-color: #52c41a;
+
+    &:hover {
+      background-color: #73d13d;
+      border-color: #73d13d;
+    }
+  }
+
   .close {
     width: 100px;
     margin-left: 10px;

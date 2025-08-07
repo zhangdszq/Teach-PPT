@@ -182,6 +182,28 @@ const api = {
       }),
     })
   },
+
+  // PPT单页上传接口
+  uploadSlide(slideData: any): Promise<any> {
+    return fetch(`${SERVER_URL}/api/ppt/upload-slide`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(slideData),
+    }).then(response => response.json())
+  },
+
+  // PPT确认保存接口
+  confirmSave(saveData: any): Promise<any> {
+    return fetch(`${SERVER_URL}/api/ppt/confirm-save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(saveData),
+    }).then(response => response.json())
+  },
 }
 
 // 导出 SERVER_URL 供其他组件使用
