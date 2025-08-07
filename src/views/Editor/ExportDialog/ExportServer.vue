@@ -14,60 +14,41 @@
     </div>
     <div class="configs">
       <div class="row">
-        <div class="title">保存格式：</div>
-        <RadioGroup
-          class="config-item"
-          v-model:value="format"
-        >
-          <RadioButton style="width: 50%;" value="jpeg">JPEG</RadioButton>
-          <RadioButton style="width: 50%;" value="png">PNG</RadioButton>
-        </RadioGroup>
-      </div>
-      <div class="row">
-        <div class="title">保存范围：</div>
-        <RadioGroup
-          class="config-item"
-          v-model:value="rangeType"
-        >
-          <RadioButton style="width: 33.33%;" value="all">全部</RadioButton>
-          <RadioButton style="width: 33.33%;" value="current">当前页</RadioButton>
-          <RadioButton style="width: 33.33%;" value="custom">自定义</RadioButton>
-        </RadioGroup>
-      </div>
-      <div class="row" v-if="rangeType === 'custom'">
-        <div class="title" :data-range="`（${range[0]} ~ ${range[1]}）`">自定义范围：</div>
-        <Slider
-          class="config-item"
-          range
-          :min="1"
-          :max="slides.length"
-          :step="1"
-          v-model:value="range"
-        />
-      </div>
-
-      <div class="row">
-        <div class="title">图片质量：</div>
-        <Slider
-          class="config-item"
-          :min="0"
-          :max="1"
-          :step="0.1"
-          v-model:value="quality"
-        />
-      </div>
-
-      <div class="row">
-        <div class="title">忽略在线字体：</div>
+        <div class="title">PPT标题：</div>
         <div class="config-item">
-          <Switch v-model:value="ignoreWebfont" v-tooltip="'保存时默认忽略在线字体，若您在幻灯片中使用了在线字体，且希望保存后保留相关样式，可选择关闭【忽略在线字体】选项，但要注意这将会增加保存用时。'" />
+          <Input v-model:value="pptTitle" placeholder="请输入PPT标题" />
         </div>
       </div>
 
       <div class="row">
-        <div class="title">PPT标题：</div>
+        <div class="title">教材：</div>
         <div class="config-item">
-          <Input v-model:value="pptTitle" placeholder="请输入PPT标题" />
+          <select v-model="selectedTextbook" class="textbook-select">
+            <option value="">请选择教材</option>
+            <option value="人教版">人教版</option>
+            <option value="苏教版">苏教版</option>
+            <option value="北师大版">北师大版</option>
+            <option value="外研版">外研版</option>
+            <option value="牛津版">牛津版</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="title">年级：</div>
+        <div class="config-item">
+          <select v-model="selectedGrade" class="grade-select">
+            <option value="">请选择年级</option>
+            <option value="一年级">一年级</option>
+            <option value="二年级">二年级</option>
+            <option value="三年级">三年级</option>
+            <option value="四年级">四年级</option>
+            <option value="五年级">五年级</option>
+            <option value="六年级">六年级</option>
+            <option value="初一">初一</option>
+            <option value="初二">初二</option>
+            <option value="初三">初三</option>
+          </select>
         </div>
       </div>
 
@@ -92,7 +73,7 @@
         @click="saveToServer()" 
         :disabled="saving"
       >
-        {{ saving ? '保存中...' : '保存到服务器' }}
+        {{ saving ? '保存中...' : '保存' }}
       </Button>
       <Button class="btn close" @click="emit('close')">关闭</Button>
     </div>
@@ -130,6 +111,8 @@ const format = ref<'jpeg' | 'png'>('jpeg')
 const quality = ref(1)
 const ignoreWebfont = ref(true)
 const pptTitle = ref(title.value || 'PPT演示文稿')
+const selectedTextbook = ref('')
+const selectedGrade = ref('')
 const saving = ref(false)
 const currentSlideIndex = ref(0)
 const totalSlides = ref(0)
@@ -580,6 +563,8 @@ const saveToServer = async () => {
       quality: quality.value,
       slideCount: slides.length,
       rangeType: rangeType.value,
+      textbook: selectedTextbook.value,
+      grade: selectedGrade.value,
       slides: slides
     }
 
@@ -659,23 +644,45 @@ const saveToServer = async () => {
   .config-item {
     flex: 1;
   }
-  
+
+  .textbook-select,
+  .grade-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background-color: #fff;
+    font-size: 14px;
+    color: #333;
+    outline: none;
+    transition: border-color 0.3s;
+
+    &:hover {
+      border-color: #40a9ff;
+    }
+
+    &:focus {
+      border-color: #1890ff;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+    }
+  }
+
   .progress-info {
     width: 100%;
-    
+
     .progress-text {
       font-size: 12px;
       color: #666;
       margin-bottom: 8px;
     }
-    
+
     .progress-bar {
       width: 100%;
       height: 6px;
       background-color: #f0f0f0;
       border-radius: 3px;
       overflow: hidden;
-      
+
       .progress-fill {
         height: 100%;
         background-color: #1890ff;

@@ -17,7 +17,7 @@
           }">
             <PopoverMenuItem>导入 pptist 文件</PopoverMenuItem>
           </FileInput>
-          <PopoverMenuItem @click="setDialogForExport('pptx')">导出文件</PopoverMenuItem>
+          <PopoverMenuItem @click="setDialogForExport('server')">导出文件</PopoverMenuItem>
           <PopoverMenuItem @click="resetSlides(); mainMenuVisible = false">重置幻灯片</PopoverMenuItem>
           <PopoverMenuItem @click="openMarkupPanel(); mainMenuVisible = false">PPT 模板制作</PopoverMenuItem>
           <PopoverMenuItem @click="goLink('https://github.com/pipipi-pikachu/PPTist/issues')">意见反馈</PopoverMenuItem>
@@ -60,12 +60,10 @@
       <div class="menu-item" v-tooltip="'AI生成PPT'" @click="openAIPPTDialog(); mainMenuVisible = false">
         <span class="text ai">AI</span>
       </div>
-      <div class="menu-item" v-tooltip="'导出'" @click="setDialogForExport('pptx')">
+      <div class="menu-item" v-tooltip="'导出'" @click="setDialogForExport('server')">
         <IconDownload class="icon" />
       </div>
-      <a class="github-link" v-tooltip="'Copyright © 2020-PRESENT pipipi-pikachu'" href="https://github.com/pipipi-pikachu/PPTist" target="_blank">
-        <div class="menu-item"><IconGithub class="icon" /></div>
-      </a>
+
     </div>
 
     <Drawer
@@ -241,8 +239,5 @@ const openCourseImportDialog = () => {
     }
   }
 }
-.github-link {
-  display: inline-block;
-  height: 30px;
-}
+
 </style>

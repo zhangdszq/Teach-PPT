@@ -37,10 +37,10 @@ const { dialogForExport } = storeToRefs(mainStore)
 const setDialogForExport = mainStore.setDialogForExport
 
 const tabs: TabItem[] = [
+  { key: 'server', label: '发布 PPT' },
   { key: 'pptist', label: '导出 pptist 文件' },
   { key: 'pptx', label: '导出 PPTX' },
   { key: 'image', label: '导出图片' },
-  { key: 'server', label: '保存到服务器' },
   { key: 'json', label: '导出 JSON' },
   { key: 'pdf', label: '打印 / 导出 PDF' },
 ]
