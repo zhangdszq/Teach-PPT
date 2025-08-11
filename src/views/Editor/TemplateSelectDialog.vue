@@ -60,7 +60,7 @@
                 <span>{{ template.subject }}</span>
               </div>
               <div class="meta-item">
-                <IconGraduationCap class="meta-icon" />
+                <IconUser class="meta-icon" />
                 <span>{{ template.grade }}</span>
               </div>
               <div class="meta-item">
@@ -234,16 +234,19 @@ const fetchMatchedTemplates = async () => {
       }))
       
       console.log('获取到匹配模板:', matchedTemplates.value)
-    } else {
+    }
+    else {
       console.log('未找到匹配的模板或数据格式不正确:', data)
       message.warning('未找到匹配的模板，使用默认模板')
       matchedTemplates.value = []
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('获取匹配模板失败:', error)
     message.error('获取模板失败，使用默认模板')
     matchedTemplates.value = []
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }

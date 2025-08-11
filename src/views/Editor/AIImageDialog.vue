@@ -102,14 +102,46 @@ watch(() => props.visible, (newVisible) => {
     const currentSlide = slidesStore.currentSlide
     const element = currentSlide.elements.find(el => el.id === handleElementId.value)
     
+    // 验证slideIndex和实际幻灯片的一致性
+    const slideById = slidesStore.slides.find(slide => slide.id === currentSlide.id)
+    const actualSlideIndex = slidesStore.slides.findIndex(slide => slide.id === currentSlide.id)
+    
+    // 输出详细的调试信息
     console.log(`🎯 AI图片对话框打开:`, {
       fixedSlideIndex: fixedSlideIndex.value,
       fixedElementId: fixedElementId.value,
       currentSlideId: currentSlide.id,
+      actualSlideIndex: actualSlideIndex,
+      slideIndexMatch: fixedSlideIndex.value === actualSlideIndex,
       elementExists: !!element,
       elementType: element?.type,
-      totalElements: currentSlide.elements.length
+      totalElements: currentSlide.elements.length,
+      totalSlides: slidesStore.slides.length
     })
+    
+    // 输出slides数组的详细信息
+    console.log(`📋 幻灯片数组详情:`, {
+      slidesArray: slidesStore.slides.map((slide, idx) => ({
+        index: idx,
+        id: slide.id,
+        isCurrent: idx === fixedSlideIndex.value,
+        isCurrentSlideId: slide.id === currentSlide.id
+      })),
+      currentSlideFromGetter: {
+        id: currentSlide.id,
+        fromIndex: fixedSlideIndex.value
+      },
+      slideAtActualIndex: actualSlideIndex >= 0 ? {
+        id: slidesStore.slides[actualSlideIndex]?.id,
+        index: actualSlideIndex
+      } : null
+    })
+    
+    // 如果发现索引不一致，使用实际的索引
+    if (fixedSlideIndex.value !== actualSlideIndex && actualSlideIndex !== -1) {
+      console.warn(`⚠️ 检测到索引不一致: slideIndex=${fixedSlideIndex.value}, 实际索引=${actualSlideIndex}，已修正`);
+      fixedSlideIndex.value = actualSlideIndex
+    }
     
     if (element && element.type === 'image' && element.alt) {
       prompt.value = element.alt

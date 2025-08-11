@@ -126,7 +126,39 @@ export const useSlidesStore = defineStore('slides', {
     },
   
     setSlides(slides: Slide[]) {
-      this.slides = slides
+      // 检查并修复重复的幻灯片ID
+      const seenIds = new Set<string>()
+      const duplicateIds = new Set<string>()
+      
+      slides.forEach(slide => {
+        if (seenIds.has(slide.id)) {
+          duplicateIds.add(slide.id)
+        } else {
+          seenIds.add(slide.id)
+        }
+      })
+      
+      if (duplicateIds.size > 0) {
+        console.warn('⚠️ 检测到重复的幻灯片ID:', Array.from(duplicateIds))
+        console.log('📋 重复ID详情:', slides.map((slide, index) => ({ index, id: slide.id })))
+        
+        // 为重复的ID生成新的唯一ID
+        const processedSlides = slides.map((slide, index) => {
+          if (duplicateIds.has(slide.id)) {
+            const firstOccurrence = slides.findIndex(s => s.id === slide.id)
+            if (index !== firstOccurrence) {
+              const newId = `${slide.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+              console.log(`🔧 修复重复ID: ${slide.id} -> ${newId} (索引 ${index})`)
+              return { ...slide, id: newId }
+            }
+          }
+          return slide
+        })
+        
+        this.slides = processedSlides
+      } else {
+        this.slides = slides
+      }
     },
   
     setTemplates(templates: SlideTemplate[]) {
@@ -139,8 +171,20 @@ export const useSlidesStore = defineStore('slides', {
         if (slide.sectionTag) delete slide.sectionTag
       }
 
+      // 检查新添加的幻灯片是否与现有幻灯片有重复ID
+      const existingIds = new Set(this.slides.map(s => s.id))
+      const processedSlides = slides.map(slide => {
+        if (existingIds.has(slide.id)) {
+          const newId = `${slide.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          console.warn(`⚠️ 添加幻灯片时检测到重复ID: ${slide.id} -> ${newId}`)
+          return { ...slide, id: newId }
+        }
+        existingIds.add(slide.id) // 添加到集合中，防止批量添加时内部重复
+        return slide
+      })
+
       const addIndex = this.slideIndex + 1
-      this.slides.splice(addIndex, 0, ...slides)
+      this.slides.splice(addIndex, 0, ...processedSlides)
       this.slideIndex = addIndex
     },
   
@@ -207,32 +251,67 @@ export const useSlidesStore = defineStore('slides', {
   
     updateElement(data: UpdateElementData) {
       const { id, props, slideId } = data
-      const elIdList = typeof id === 'string' ? [id] : id
-
-      const slideIndex = slideId ? this.slides.findIndex(item => item.id === slideId) : this.slideIndex
+      let slideIndex: number
       
-      // 检查slideIndex是否有效
+      if (slideId) {
+        // 当提供slideId时，需要找到正确的幻灯片索引
+        // 由于可能存在重复ID，我们需要更智能的查找策略
+        const matchingIndices = this.slides
+          .map((slide, index) => ({ slide, index }))
+          .filter(item => item.slide.id === slideId)
+          .map(item => item.index)
+        
+        if (matchingIndices.length === 0) {
+          console.error('❌ No slide found with ID:', slideId)
+          return
+        } else if (matchingIndices.length === 1) {
+          slideIndex = matchingIndices[0]
+        } else {
+          // 存在重复ID，优先选择当前slideIndex对应的幻灯片
+          console.warn('⚠️ Multiple slides found with same ID:', slideId, 'indices:', matchingIndices)
+          if (matchingIndices.includes(this.slideIndex)) {
+            slideIndex = this.slideIndex
+            console.log('✅ Using current slideIndex:', slideIndex)
+          } else {
+            // 如果当前slideIndex不在匹配列表中，选择最接近当前索引的
+            slideIndex = matchingIndices.reduce((closest, current) => 
+              Math.abs(current - this.slideIndex) < Math.abs(closest - this.slideIndex) ? current : closest
+            )
+            console.log('✅ Using closest slideIndex:', slideIndex)
+          }
+        }
+      } else {
+        slideIndex = this.slideIndex
+      }
+      
+      console.log('🔧 updateElement called:', {
+        elementId: id,
+        slideId,
+        slideIndex,
+        currentSlideIndex: this.slideIndex,
+        totalSlides: this.slides.length,
+        slidesList: this.slides.map((slide, index) => ({ index, id: slide.id }))
+      })
+      
       if (slideIndex < 0 || slideIndex >= this.slides.length) {
-        console.error(`❌ updateElement失败: 无效的幻灯片索引 ${slideIndex}`, {
-          slideId,
-          totalSlides: this.slides.length,
-          currentSlideIndex: this.slideIndex
-        })
+        console.error('❌ Invalid slideIndex:', slideIndex)
         return
       }
       
       const slide = this.slides[slideIndex]
-      if (!slide) {
-        console.error(`❌ updateElement失败: 幻灯片不存在`, { slideIndex, slideId })
-        return
-      }
-      
-      const elements = slide.elements.map(el => {
-        return elIdList.includes(el.id) ? { ...el, ...props } : el
+      const elements = slide.elements.map(element => {
+        if (typeof id === 'string') {
+          return element.id === id ? { ...element, ...props } : element
+        }
+        return id.includes(element.id) ? { ...element, ...props } : element
       })
-      this.slides[slideIndex].elements = (elements as PPTElement[])
+      this.slides[slideIndex].elements = elements
       
-      console.log(`✅ updateElement成功: 幻灯片 ${slideId || 'current'} 中的元素 ${elIdList} 已更新`)
+      console.log('✅ Element updated successfully:', {
+        slideIndex,
+        elementId: id,
+        updatedSlideId: slide.id
+      })
     },
   
     removeElementProps(data: RemovePropData) {

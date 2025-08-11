@@ -67,7 +67,7 @@
               </div>
             </div>
             <div v-if="uploadedFileName" class="uploaded-file">
-              <IconFile />
+              <IconPicture />
               <span>{{ uploadedFileName }}</span>
               <button @click="clearFile" class="clear-btn">
                 <IconClose />

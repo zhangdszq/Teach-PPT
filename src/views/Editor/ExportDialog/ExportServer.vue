@@ -82,10 +82,10 @@
 
     <div class="btns">
       <Button class="btn save" type="primary" @click="saveToServer()" :disabled="saving || showConfirmSave" v-if="!showConfirmSave">
-        {{ saving ? '保存中...' : '开始上传' }}
+        {{ saving ? (isEditMode ? '更新中...' : '保存中...') : (isEditMode ? '开始更新' : '开始上传') }}
       </Button>
       <Button class="btn confirm-save" type="primary" @click="confirmSave()" v-if="showConfirmSave">
-        确认保存 ({{ uploadedSlides.length }} 页)
+        {{ isEditMode ? '确认更新' : '确认保存' }} ({{ uploadedSlides.length }} 页)
       </Button>
       <Button class="btn close" @click="handleClose()" :disabled="saving">关闭</Button>
     </div>
@@ -115,6 +115,14 @@ const emit = defineEmits<{
   (event: 'close'): void
 }>()
 
+// 获取URL参数中的pptId
+const getUrlParams = () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return {
+    pptId: urlParams.get('pptId')
+  }
+}
+
 // 重置状态
 const resetState = () => {
   saving.value = false
@@ -122,7 +130,11 @@ const resetState = () => {
   totalSlides.value = 0
   uploadedSlides.value = []
   showConfirmSave.value = false
-  pptId.value = ''
+  // 如果URL中没有pptId，则重置为空字符串
+  const { pptId: urlPptId } = getUrlParams()
+  if (!urlPptId) {
+    pptId.value = ''
+  }
 }
 
 // 关闭对话框
@@ -149,6 +161,23 @@ const totalSlides = ref(0)
 const uploadedSlides = ref<any[]>([])
 const showConfirmSave = ref(false)
 const pptId = ref<string>('')
+const isEditMode = ref(false) // 是否为编辑模式
+
+// 初始化时检查是否为编辑模式
+const initializeEditMode = () => {
+  const { pptId: urlPptId } = getUrlParams()
+  if (urlPptId) {
+    pptId.value = urlPptId
+    isEditMode.value = true
+    console.log('编辑模式：更新现有PPT', urlPptId)
+  } else {
+    isEditMode.value = false
+    console.log('新建模式：创建新PPT')
+  }
+}
+
+// 组件挂载时初始化
+initializeEditMode()
 
 const renderSlides = computed(() => {
   if (rangeType.value === 'all') return slides.value
@@ -539,10 +568,17 @@ const confirmSave = async () => {
     const response = await api.confirmSave(postData) as any
 
     if (response && response.status === 'success' && response.data && response.data.success) {
-      message.success(`PPT已成功保存到服务器！共 ${uploadedSlides.value.length} 页`)
+      const isUpdate = response.data.isUpdate || false
+      if (isUpdate) {
+        message.success(`PPT已成功更新！共 ${uploadedSlides.value.length} 页`)
+      }
+      else {
+        message.success(`PPT已成功保存到服务器！共 ${uploadedSlides.value.length} 页`)
+      }
+      
       
       if (response.data.id) {
-        message.success(`保存成功，ID: ${response.data.id}`)
+        message.success(`${isUpdate ? '更新' : '保存'}成功，ID: ${response.data.id}`)
       }
       
       // 保存成功后关闭对话框
@@ -576,8 +612,17 @@ const saveToServer = async () => {
     return
   }
 
-  // 生成唯一的PPT ID
-  pptId.value = nanoid()
+  // 根据模式设置PPT ID
+  if (!isEditMode.value) {
+    // 新建模式：生成唯一的PPT ID
+    pptId.value = nanoid()
+    console.log('新建PPT，生成ID:', pptId.value)
+  }
+  else {
+    // 编辑模式：使用现有的PPT ID
+    console.log('更新现有PPT，ID:', pptId.value)
+  }
+  
   
   saving.value = true
   currentSlideIndex.value = 0
