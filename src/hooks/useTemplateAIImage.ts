@@ -48,6 +48,7 @@ export default () => {
       }
 
       const slide = slidesStore.slides[targetSlideIndex]
+      console.log('============================================')
       console.log(`📄 处理幻灯片: 索引 ${targetSlideIndex}, ID ${slide.id}, 元素数量 ${slide.elements.length}`)
       
       // 收集当前幻灯片中需要AI生成图片的元素并添加到队列
@@ -77,7 +78,8 @@ export default () => {
       if (processedCount.value > 0) {
         addHistorySnapshot()
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('处理模板图片时发生错误:', error)
       message.error('处理图片时发生错误，请重试')
     }

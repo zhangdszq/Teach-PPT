@@ -116,6 +116,7 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { nanoid } from 'nanoid'
 import { courseTypeOptions as courseOptionsData } from '@/configs/course'
 import api from '@/services'
 import useAIPPT from '@/hooks/useAIPPT'
@@ -134,7 +135,7 @@ import StyleSelectDialog from './StyleSelectDialog.vue'
 const mainStore = useMainStore()
 const slideStore = useSlidesStore()
 const { templates } = storeToRefs(slideStore)
-const { AIPPT, presetImgPool, getMdContent, collectAndQueueImages, startImageGeneration, totalImageCount, processedImageCount } = useAIPPT()
+const { AIPPT, presetImgPool, getMdContent, collectAndQueueImages, startImageGeneration, totalImageCount, processedImageCount, imageGenerationQueue } = useAIPPT()
 
 const grade = ref('1年级')
 const style = ref('儿童友好')
@@ -375,13 +376,13 @@ const createPPT = async () => {
                   // 第一步：先创建所有文字版幻灯片并应用尺寸适配
                   for (const slideData of templateSlides) {
                     // 为每个幻灯片创建新的ID
-                    const slideId = slideData.id || `slide_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                    const slideId = nanoid(10)
                     
                     // 应用固定视口适配处理元素
                     const adaptedElements = processElementsWithFixedViewport(slideData.elements || [], templateSize)
                     
                     // 构建完整的幻灯片对象
-                    const finalSlide = {
+                    const finalSlide: Slide = {
                       id: slideId,
                       elements: adaptedElements,
                       background: slideData.background || { type: 'solid', color: '#ffffff' },
@@ -408,11 +409,9 @@ const createPPT = async () => {
                   
                   console.log(`✅ 成功添加 ${templateSlides.length} 张文字版幻灯片，当前总数: ${slideStore.slides.length}`)
                   
-                  // 第三步：异步处理AI图片生成，不阻塞PPT显示
-                  setTimeout(async () => {
-                    console.log('🖼️ 开始逐页处理AI图片生成...')
-                    await processAllSlidesAIImages(processedSlides)
-                  }, 500) // 延迟500ms开始处理图片，确保PPT已经显示
+                  // 第三步：标记这个幻灯片需要处理AI图片
+                  // 注意：不在这里处理，而是等所有幻灯片创建完成后统一处理
+                  console.log('🖼️ 标记幻灯片需要AI图片生成处理')
                 } else {
                   console.warn('⚠️ 模板应用失败，使用默认方式创建幻灯片')
                   // 回退到原来的方式
@@ -453,6 +452,24 @@ const createPPT = async () => {
         }
         loading.value = false
         mainStore.setAIPPTDialogState(false)
+        
+        // 在流结束后统一处理所有AI图片生成
+        console.log('🏁 PPT生成流已完成，开始统一处理AI图片生成...')
+        
+        // 延迟一点时间确保所有幻灯片都已经添加到store
+        setTimeout(async () => {
+          // 调用 hook 中的方法，收集所有幻灯片中的图片并处理
+          collectAndQueueImages() // 不传参数，处理所有幻灯片
+          
+          if (imageGenerationQueue.value.length > 0) {
+            console.log(`🚀 检测到 ${imageGenerationQueue.value.length} 个图片需要AI生成，开始处理...`)
+            await startImageGeneration()
+            console.log('🎊 所有AI图片生成完成！')
+          } else {
+            console.log('📷 未找到需要AI生成的图片')
+          }
+        }, 1000)
+        
         return
       }
   
@@ -718,30 +735,7 @@ const processAIDataForDisplay = (aiData: any) => {
   return processedData
 }
 
-// 批量处理所有幻灯片的AI图片生成 - 使用队列方式
-const processAllSlidesAIImages = async (slides: any[]) => {
-  try {
-    console.log(`🖼️ 开始收集 ${slides.length} 张幻灯片中需要AI生成的图片`)
-    
-    // 收集所有需要AI生成图片的元素并添加到队列
-    collectAndQueueImages(slides)
-    
-    console.log(`📋 图片生成队列收集完成，共 ${totalImageCount.value} 个图片需要生成`)
-    
-    // 启动图片生成队列处理
-    if (totalImageCount.value > 0) {
-      console.log('🚀 启动图片生成队列处理...')
-      await startImageGeneration()
-      console.log('🎊 所有图片生成完成！')
-    } else {
-      console.log('📷 未找到需要AI生成的图片')
-    }
-    
-  } catch (error) {
-    console.error('❌ 批量处理AI图片生成时出错:', error)
-    // 不抛出错误，避免影响整个PPT生成流程
-  }
-}
+// 移除这个函数，直接使用 hook 中的方法
 
 // 使用固定视口模式处理元素适配
 const processElementsWithFixedViewport = (elements: any[], slideSize?: { width: number; height: number }) => {
@@ -759,7 +753,8 @@ const processElementsWithFixedViewport = (elements: any[], slideSize?: { width: 
   
   return elements.map(element => {
     const scaledElement = { ...element }
-    
+    // 为每个元素生成新的 id
+    scaledElement.id = nanoid(10)
     scaledElement.left = element.left * ratio
     scaledElement.top = element.top * ratio
     scaledElement.width = element.width * ratio
