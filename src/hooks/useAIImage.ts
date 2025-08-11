@@ -19,14 +19,14 @@ export default () => {
     const targetSlideIndex = slideIndex !== undefined ? slideIndex : slidesStore.slideIndex
     const targetElementId = elementId || handleElementId.value
     
-    console.log(`🎯 AI图片生成: 使用固定的幻灯片索引 ${targetSlideIndex}, 元素ID ${targetElementId}`);
+    console.log(`🎯 AI图片生成: 使用固定的幻灯片索引 ${targetSlideIndex}, 元素ID ${targetElementId}`)
     console.log(`📊 当前状态:`, {
       传入slideIndex: slideIndex,
       当前slideIndex: slidesStore.slideIndex,
       最终targetSlideIndex: targetSlideIndex,
       总幻灯片数: slidesStore.slides.length,
       幻灯片列表: slidesStore.slides.map((slide, idx) => ({ index: idx, id: slide.id }))
-    });
+    })
     
     if (!targetElementId) {
       message.error('请先选择一个图片元素')
@@ -36,7 +36,7 @@ export default () => {
     // 根据slideIndex获取对应的幻灯片
     const targetSlide = slidesStore.slides[targetSlideIndex]
     if (!targetSlide) {
-      console.error(`❌ 目标幻灯片不存在: 索引 ${targetSlideIndex}, 总数 ${slidesStore.slides.length}`);
+      console.error(`❌ 目标幻灯片不存在: 索引 ${targetSlideIndex}, 总数 ${slidesStore.slides.length}`)
       message.error('目标幻灯片不存在')
       return false
     }
@@ -119,7 +119,7 @@ export default () => {
       
       slidesStore.updateElement({
         id: targetElementId,
-        props: { src: imageUrl },
+        props: { src: imageUrl, alt: prompt },
         slideId: slideId
       })
       

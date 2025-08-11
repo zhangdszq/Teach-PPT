@@ -78,10 +78,11 @@ const tooltipRangeEndValue = computed(() => {
 
 watch(() => props.value, () => {
   if (props.max === props.min) return
+  if (!props.value) return
   if (typeof props.value === 'number') {
     percentage.value = (props.value - props.min) / (props.max - props.min) * 100
   }
-  else {
+  else if (Array.isArray(props.value) && props.value.length >= 2) {
     start.value = (props.value[0] - props.min) / (props.max - props.min) * 100
     end.value = (props.value[1] - props.min) / (props.max - props.min) * 100
   }

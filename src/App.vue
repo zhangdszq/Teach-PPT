@@ -55,6 +55,25 @@ onMounted(async () => {
       const response = await api.getPPTById(pptId)
       if (response && response.status === 'success' && response.data) {
         slidesData = response.data.slides || []
+        
+        // 检查并记录 aiData 字段
+        console.log('🔍 检查从服务器加载的 PPT 数据:')
+        console.log('📊 PPT 基本信息:', {
+          pptId: response.data.pptId,
+          title: response.data.title,
+          slideCount: response.data.slideCount
+        })
+        
+        if (slidesData && slidesData.length > 0) {
+          slidesData.forEach((slide, index) => {
+            if (slide.aiData) {
+              console.log(`🤖 第 ${index + 1} 页包含 aiData:`, slide.aiData)
+            } else {
+              console.log(`⚠️ 第 ${index + 1} 页不包含 aiData 字段`)
+            }
+          })
+        }
+        
         // 如果有标题，设置标题
         if (response.data.title) {
           slidesStore.setTitle(response.data.title)

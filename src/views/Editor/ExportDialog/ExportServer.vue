@@ -517,6 +517,13 @@ const captureSlideImage = async (): Promise<string | null> => {
 // 单页上传到服务器
 const uploadSingleSlide = async (slideIndex: number, imageData: string, slideData: any) => {
   try {
+    // 检查并记录 aiData 字段
+    if (slideData.aiData) {
+      console.log(`🤖 第 ${slideIndex} 页包含 aiData:`, slideData.aiData)
+    } else {
+      console.log(`⚠️ 第 ${slideIndex} 页不包含 aiData 字段`)
+    }
+    
     const postData = {
       pptId: pptId.value,
       title: pptTitle.value.trim(),

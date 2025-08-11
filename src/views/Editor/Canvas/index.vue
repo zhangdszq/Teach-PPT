@@ -158,6 +158,7 @@ import useScreening from '@/hooks/useScreening'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useCreateElement from '@/hooks/useCreateElement'
 import useTemplateAIImage from '@/hooks/useTemplateAIImage'
+import useAIDataSync from '@/hooks/useAIDataSync'
 import api from '@/services'
 import message from '@/utils/message'
 
@@ -647,6 +648,9 @@ const { enterScreeningFromStart } = useScreening()
 const { updateSlideIndex } = useSlideHandler()
 const { createTextElement, createShapeElement } = useCreateElement()
 const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImage()
+
+// 启用 AI 数据同步
+useAIDataSync()
 
 // 组件渲染时，如果存在元素焦点，需要清除
 // 这种情况存在于：有焦点元素的情况下进入了放映模式，再退出时，需要清除原先的焦点（因为可能已经切换了页面）

@@ -25,6 +25,7 @@
     "hfmath": "^0.0.2",
     "html-to-image": "^1.11.11",
     "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "mitt": "^3.0.1",
     "nanoid": "^5.0.7",
     "number-precision": "^1.6.0",

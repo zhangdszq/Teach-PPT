@@ -113,6 +113,14 @@ const updateTableElementHeight = (entries: ResizeObserverEntry[]) => {
   const contentRect = entries[0].contentRect
   if (!elementRef.value) return
 
+  // 避免在切换幻灯片时触发不必要的更新
+  // 只有在元素被选中、正在编辑或正在缩放时才更新尺寸
+  const isElementActive = handleElementId.value === props.elementInfo.id
+  const isEditing = editable.value
+  if (!isElementActive && !isEditing && !isScaling.value) {
+    return
+  }
+
   const realHeight = contentRect.height
 
   if (props.elementInfo.height !== realHeight) {
