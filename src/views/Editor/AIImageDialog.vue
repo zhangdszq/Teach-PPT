@@ -74,11 +74,16 @@ const emit = defineEmits<{
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const { handleElementId } = storeToRefs(mainStore)
+const { slideIndex } = storeToRefs(slidesStore)
 
 const { isGenerating, generateAIImage } = useAIImage()
 
 const prompt = ref('')
 const selectedModel = ref('jimeng')
+
+// 固定记录对话框打开时的slideIndex和elementId，避免用户切换幻灯片时出现错误
+const fixedSlideIndex = ref<number>(0)
+const fixedElementId = ref<string>('')
 
 const modelOptions = [
   { label: '即梦 (火山引擎) - 推荐', value: 'jimeng' },
@@ -87,26 +92,48 @@ const modelOptions = [
   { label: 'Stable Diffusion', value: 'stable-diffusion' },
 ]
 
-// 监听对话框显示状态，当显示时从当前选中的图片元素获取 alt 描述
+// 监听对话框显示状态，当显示时固定记录slideIndex和elementId，并获取alt描述
 watch(() => props.visible, (newVisible) => {
   if (newVisible && handleElementId.value) {
-    const element = slidesStore.currentSlide.elements.find(el => el.id === handleElementId.value)
+    // 固定记录当前的slideIndex和elementId
+    fixedSlideIndex.value = slideIndex.value
+    fixedElementId.value = handleElementId.value
+    
+    const currentSlide = slidesStore.currentSlide
+    const element = currentSlide.elements.find(el => el.id === handleElementId.value)
+    
+    console.log(`🎯 AI图片对话框打开:`, {
+      fixedSlideIndex: fixedSlideIndex.value,
+      fixedElementId: fixedElementId.value,
+      currentSlideId: currentSlide.id,
+      elementExists: !!element,
+      elementType: element?.type,
+      totalElements: currentSlide.elements.length
+    })
+    
     if (element && element.type === 'image' && element.alt) {
       prompt.value = element.alt
     }
   }
 })
 
-const handleGenerate = async () => {
+const handleGenerate = () => {
   if (!prompt.value.trim()) return
   
-  // 调用图片生成函数，获取成功状态
-  const success = await generateAIImage(prompt.value, selectedModel.value)
+  console.log(`🎯 AI图片生成: 使用固定的幻灯片索引 ${fixedSlideIndex.value}, 元素ID ${fixedElementId.value}`)
   
-  // 只有在生成成功时才关闭对话框
-  if (success) {
-    emit('close')
-  }
+  // 立即关闭对话框，不影响用户继续操作
+  emit('close')
+  
+  // 在后台异步生成图片，使用固定记录的slideIndex和elementId参数
+  generateAIImage(
+    prompt.value, 
+    selectedModel.value, 
+    undefined, // width
+    undefined, // height
+    fixedSlideIndex.value, 
+    fixedElementId.value
+  )
 }
 </script>
 

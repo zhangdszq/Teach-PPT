@@ -14,13 +14,24 @@ export default () => {
 
   const isGenerating = ref(false)
 
-  const generateAIImage = async (prompt: string, model: string = 'jimeng', width?: number, height?: number) => {
-    if (!handleElementId.value) {
+  const generateAIImage = async (prompt: string, model: string = 'jimeng', width?: number, height?: number, slideIndex?: number, elementId?: string) => {
+    // 使用传入的参数或默认值
+    const targetSlideIndex = slideIndex !== undefined ? slideIndex : slidesStore.slideIndex
+    const targetElementId = elementId || handleElementId.value
+    
+    if (!targetElementId) {
       message.error('请先选择一个图片元素')
       return false
     }
 
-    const element = slidesStore.currentSlide.elements.find(el => el.id === handleElementId.value)
+    // 根据slideIndex获取对应的幻灯片
+    const targetSlide = slidesStore.slides[targetSlideIndex]
+    if (!targetSlide) {
+      message.error('目标幻灯片不存在')
+      return false
+    }
+
+    const element = targetSlide.elements.find(el => el.id === targetElementId)
     if (!element || element.type !== 'image') {
       message.error('请选择一个图片元素')
       return false
@@ -39,6 +50,8 @@ export default () => {
     const loadingMessage = message.success('正在生成图片，请稍候...', { duration: 0 })
 
     try {
+      console.log(`🎨 开始为幻灯片 ${targetSlideIndex} 中的元素 ${targetElementId} 生成图片`)
+      
       const response = await API.AI_Image({ 
         prompt, 
         model, 
@@ -56,38 +69,56 @@ export default () => {
           // 检查是否有嵌套的data结构
           if (data.data.data && data.data.data.image_url) {
             imageUrl = data.data.data.image_url
-          } else if (data.data.image_url) {
+          }
+          else if (data.data.image_url) {
             imageUrl = data.data.image_url
-          } else {
+          }
+          else {
             throw new Error('响应中未找到图片URL')
           }
-        } else {
+        }
+        else {
           throw new Error(data.message || data.errorMessage || '即梦图片生成失败')
         }
-      } else {
+      }
+      else {
         // 其他AI服务的响应格式
         if (data.success && data.data && data.data.url) {
           imageUrl = data.data.url
-        } else {
+        }
+        else {
           throw new Error(data.message || '图片生成失败')
         }
       }
       
-      if (imageUrl) {
-        // 更新图片元素的src
-        slidesStore.updateElement({
-          id: handleElementId.value,
-          props: { src: imageUrl }
-        })
-        
-        addHistorySnapshot()
-        loadingMessage.close() // 关闭加载消息
-        message.success('图片生成成功！')
-        return true // 返回成功状态
-      }
-      else {
+      if (!imageUrl) {
         throw new Error('未获取到图片URL')
       }
+      
+      // 使用slideId来精确更新指定幻灯片中的元素
+      const slideId = targetSlide.id
+      
+      console.log(`🔍 准备更新元素:`, {
+        targetSlideIndex,
+        slideId,
+        targetElementId,
+        imageUrl: imageUrl,
+        targetSlideElementsCount: targetSlide.elements.length,
+        elementExists: targetSlide.elements.some(el => el.id === targetElementId)
+      })
+      
+      slidesStore.updateElement({
+        id: targetElementId,
+        props: { src: imageUrl },
+        slideId: slideId
+      })
+      
+      console.log(`✅ 图片生成成功: 幻灯片 ${targetSlideIndex} (${slideId}) 中的元素 ${targetElementId} 已更新`)
+      
+      addHistorySnapshot()
+      loadingMessage.close() // 关闭加载消息
+      message.success('图片生成成功！')
+      return true // 返回成功状态
     }
     catch (error) {
       console.error('AI图片生成失败:', error)
