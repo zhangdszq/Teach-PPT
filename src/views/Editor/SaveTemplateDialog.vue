@@ -193,7 +193,7 @@ const tagSuggestions = [
 // 获取模板类型选项
 const fetchTemplateTypes = async () => {
   try {
-    const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/template/types' : '/api/template/types'
+    const apiUrl = '/api/template/types'
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -352,7 +352,7 @@ const handleAIExtract = async () => {
     console.log('🧹 已清理 slideData 中的 base64 图片数据')
     
     // 调用后端AI特征提取接口
-    const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/ai/extract-template-features' : '/api/ai/extract-template-features'
+    const apiUrl = '/api/ai/extract-template-features'
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -805,7 +805,7 @@ const handleSave = async () => {
     console.log('💾 保存模板数据（包含AI特征）:', saveData)
 
     // 调用后端保存接口
-    const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/ai/save-template' : '/api/ai/save-template'
+    const apiUrl = '/api/ai/save-template'
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {

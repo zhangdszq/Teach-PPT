@@ -36,9 +36,45 @@ if (import.meta.env.MODE !== 'development') {
   window.onbeforeunload = () => false
 }
 
+// 获取URL参数
+const getUrlParams = () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return {
+    pptId: urlParams.get('pptId')
+  }
+}
+
 onMounted(async () => {
-  const slides = await api.getFileData('slides')
-  slidesStore.setSlides(slides)
+  const { pptId } = getUrlParams()
+  
+  let slidesData
+  if (pptId) {
+    // 如果有pptId参数，从服务器加载对应的PPT数据
+    try {
+      console.log('Loading PPT with ID:', pptId)
+      const response = await api.getPPTById(pptId)
+      if (response && response.status === 'success' && response.data) {
+        slidesData = response.data.slides || []
+        // 如果有标题，设置标题
+        if (response.data.title) {
+          slidesStore.setTitle(response.data.title)
+        }
+      } else {
+        console.error('Failed to load PPT:', response)
+        // 加载失败时使用默认模板
+        slidesData = await api.getFileData('slides')
+      }
+    } catch (error) {
+      console.error('Error loading PPT:', error)
+      // 加载失败时使用默认模板
+      slidesData = await api.getFileData('slides')
+    }
+  } else {
+    // 没有pptId参数时，加载默认模板
+    slidesData = await api.getFileData('slides')
+  }
+  
+  slidesStore.setSlides(slidesData)
 
   await deleteDiscardedDB()
   snapshotStore.initSnapshotDatabase()

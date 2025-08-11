@@ -1,7 +1,7 @@
 import axios from './config'
 
 // 开发环境使用本地服务器，生产环境使用远程服务器
-export const SERVER_URL = (import.meta.env.MODE === 'development') ? 'http://localhost:3001' : 'https://server.pptist.cn'
+export const SERVER_URL = (import.meta.env.MODE === 'development') ? '' : 'https://server.pptist.cn'
 
 export const ASSET_URL = 'https://asset.pptist.cn'
 
@@ -202,6 +202,16 @@ const api = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(saveData),
+    }).then(response => response.json())
+  },
+  
+  // 根据pptID加载PPT数据
+  getPPTById(pptId: string): Promise<any> {
+    return fetch(`${SERVER_URL}/api/ppt/${pptId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     }).then(response => response.json())
   },
 }

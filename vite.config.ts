@@ -10,12 +10,14 @@ export default defineConfig({
     vue(),
   ],
   server: {
-    host: '127.0.0.1',
-    port: 5173,
+    host: '0.0.0.0',
+    port: 5174, // 改为5174端口
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
   },
