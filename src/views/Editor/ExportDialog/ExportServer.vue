@@ -170,7 +170,8 @@ const initializeEditMode = () => {
     pptId.value = urlPptId
     isEditMode.value = true
     console.log('编辑模式：更新现有PPT', urlPptId)
-  } else {
+  }
+  else {
     isEditMode.value = false
     console.log('新建模式：创建新PPT')
   }
@@ -520,7 +521,8 @@ const uploadSingleSlide = async (slideIndex: number, imageData: string, slideDat
     // 检查并记录 aiData 字段
     if (slideData.aiData) {
       console.log(`🤖 第 ${slideIndex} 页包含 aiData:`, slideData.aiData)
-    } else {
+    }
+    else {
       console.log(`⚠️ 第 ${slideIndex} 页不包含 aiData 字段`)
     }
     
@@ -688,6 +690,8 @@ const saveToServer = async () => {
         // 立即上传当前页
         try {
           const slideData = renderSlides.value[i]
+          // 调试：记录slideData中的remark字段
+          console.log(`🔍 第 ${i + 1} 页 slideData.remark:`, slideData.remark)
           const uploadResult = await uploadSingleSlide(i + 1, imageData, slideData)
           uploadedSlides.value.push({
             index: i + 1,

@@ -56,7 +56,6 @@
             
             <div class="template-meta">
               <div class="meta-item">
-                <IconBook class="meta-icon" />
                 <span>{{ template.subject }}</span>
               </div>
               <div class="meta-item">
@@ -77,6 +76,47 @@
               >
                 {{ tag }}
               </span>
+            </div>
+            
+            <!-- 匹配详情 -->
+            <div v-if="template.matchDetails" class="match-details">
+              <div class="match-title">匹配详情</div>
+              
+              <!-- 元素匹配 -->
+              <div v-if="template.matchDetails.elementMatch" class="element-matches">
+                <div class="match-section-title">元素匹配</div>
+                <div class="element-match-list">
+                  <div 
+                    v-for="(match, elementType) in template.matchDetails.elementMatch" 
+                    :key="elementType"
+                    class="element-match-item"
+                  >
+                    <span class="element-type">{{ match.description }}</span>
+                    <span :class="['match-status', { matched: match.matched, unmatched: !match.matched }]">
+                      {{ match.matched ? '✓' : '✗' }}
+                    </span>
+                    <span class="match-ratio">{{ match.template }}/{{ match.required }}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 布局匹配 -->
+              <div v-if="template.matchDetails.layoutMatch !== undefined" class="layout-match">
+                <div class="match-item">
+                  <span class="match-label">布局匹配:</span>
+                  <span :class="['match-status', { matched: template.matchDetails.layoutMatch, unmatched: !template.matchDetails.layoutMatch }]">
+                    {{ template.matchDetails.layoutMatch ? '✓ 匹配' : '✗ 不匹配' }}
+                  </span>
+                </div>
+              </div>
+              
+              <!-- 目的分数 -->
+              <div v-if="template.matchDetails.purposeScore !== null && template.matchDetails.purposeScore !== undefined" class="purpose-score">
+                <div class="match-item">
+                  <span class="match-label">目的匹配:</span>
+                  <span class="score-value">{{ template.matchDetails.purposeScore }}%</span>
+                </div>
+              </div>
             </div>
             
             <div class="template-stats">
@@ -153,6 +193,20 @@ import { useSlidesStore } from '@/store'
 import api from '@/services'
 import message from '@/utils/message'
 
+interface MatchDetails {
+  elementMatch?: {
+    [key: string]: {
+      required: number
+      template: number
+      matched: boolean
+      description: string
+    }
+  }
+  tagMatch?: any
+  layoutMatch?: boolean
+  purposeScore?: number
+}
+
 interface Template {
   id: string
   name: string
@@ -167,6 +221,7 @@ interface Template {
   author?: string
   createdAt?: string
   matchScore?: number // 匹配分数
+  matchDetails?: MatchDetails // 匹配详情
 }
 
 interface Props {
@@ -230,7 +285,8 @@ const fetchMatchedTemplates = async () => {
         rating: Math.min(5.0, 4.0 + result.score / 100), // 根据匹配分数计算评分
         author: result.template.author || 'AI推荐',
         createdAt: result.template.createdAt || new Date().toISOString().split('T')[0],
-        matchScore: result.score // 保存匹配分数
+        matchScore: result.score, // 保存匹配分数
+        matchDetails: result.matchDetails // 保存匹配详情
       }))
       
       console.log('获取到匹配模板:', matchedTemplates.value)
@@ -307,6 +363,7 @@ watch(visible, (newVisible) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 
   .dialog-overlay {
     position: absolute;
@@ -323,6 +380,7 @@ watch(visible, (newVisible) => {
     width: 95vw;
     height: 90vh;
     max-width: 1400px;
+    max-height: 90vh;
     background: white;
     border-radius: 12px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -402,10 +460,35 @@ watch(visible, (newVisible) => {
 .template-grid {
   flex: 1;
   padding: 24px 32px;
-  overflow-y: auto;
+  overflow-y: scroll;
+  overflow-x: hidden;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 32px;
+  align-items: start;
+  grid-auto-rows: max-content;
+  scroll-behavior: smooth;
+  height: 0;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
 
   .empty-state {
     grid-column: 1 / -1;
@@ -441,10 +524,15 @@ watch(visible, (newVisible) => {
   .template-card {
     border: 2px solid #e5e7eb;
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible;
     cursor: pointer;
     transition: all 0.3s;
     background: white;
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 450px;
+    margin-bottom: 16px;
 
     &:hover {
       border-color: #3b82f6;
@@ -461,6 +549,7 @@ watch(visible, (newVisible) => {
       position: relative;
       height: 180px;
       overflow: hidden;
+      flex-shrink: 0;
 
       img {
         width: 100%;
@@ -518,6 +607,9 @@ watch(visible, (newVisible) => {
 
     .template-info {
       padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
 
       .template-name {
         font-size: 18px;
@@ -567,6 +659,89 @@ watch(visible, (newVisible) => {
           padding: 2px 8px;
           border-radius: 12px;
           font-size: 12px;
+        }
+      }
+
+      .match-details {
+        margin-bottom: 8px;
+        padding: 6px;
+        background: #f8fafc;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        font-size: 10px;
+
+        .match-title {
+          font-size: 11px;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 4px;
+        }
+
+        .match-section-title {
+          font-size: 10px;
+          font-weight: 500;
+          color: #6b7280;
+          margin-bottom: 2px;
+        }
+
+        .element-match-list {
+          margin-bottom: 4px;
+        }
+
+        .element-match-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1px 0;
+          font-size: 9px;
+
+          .element-type {
+            flex: 1;
+            color: #4b5563;
+          }
+
+          .match-status {
+            margin: 0 6px;
+            font-weight: 600;
+            
+            &.matched {
+              color: #10b981;
+            }
+            
+            &.unmatched {
+              color: #ef4444;
+            }
+          }
+
+          .match-ratio {
+            font-size: 10px;
+            color: #6b7280;
+            background: #e5e7eb;
+            padding: 1px 4px;
+            border-radius: 4px;
+          }
+        }
+
+        .match-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1px 0;
+          font-size: 9px;
+
+          .match-label {
+            color: #4b5563;
+            font-weight: 500;
+          }
+
+          .score-value {
+            color: #3b82f6;
+            font-weight: 600;
+          }
+        }
+
+        .layout-match, .purpose-score {
+          margin-top: 2px;
         }
       }
 

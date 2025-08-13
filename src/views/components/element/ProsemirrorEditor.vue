@@ -57,9 +57,26 @@ let editorView: EditorView
 // 输入文字时同步数据到vuex
 // 点击鼠标和键盘时同步富文本状态到工具栏
 const handleInput = debounce(function(isHanldeHistory = false) {
-  if (props.value.replace(/ style=\"\"/g, '') === editorView.dom.innerHTML.replace(/ style=\"\"/g, '')) return
+  const currentContent = editorView.dom.innerHTML.replace(/ style=""/g, '')
+  const propsContent = props.value.replace(/ style=""/g, '')
+  
+  // 检查内容是否为空（只包含空的HTML标签）
+  const textContent = editorView.dom.textContent || ''
+  const isEmpty = textContent.trim() === ''
+  
+  // 如果内容为空，强制处理；否则检查是否有变化
+  if (!isEmpty && propsContent === currentContent) return
+  
+  // 调试日志
+  console.log('🔍 ProsemirrorEditor输入:', {
+    innerHTML: currentContent,
+    textContent: textContent,
+    isEmpty: isEmpty,
+    finalValue: isEmpty ? '' : currentContent
+  })
+  
   emit('update', {
-    value: editorView.dom.innerHTML,
+    value: isEmpty ? '' : currentContent,
     ignore: isHanldeHistory,
   })
 }, 300, { trailing: true })
@@ -292,11 +309,39 @@ onMounted(() => {
       focus: handleFocus,
       blur: handleBlur,
       keydown: handleKeydown,
+      keyup: () => handleInput(false),
       click: handleClick,
       mouseup: handleMouseup,
+      input: () => handleInput(false),
+      paste: () => {
+        setTimeout(() => handleInput(false), 0)
+      },
+      cut: () => {
+        setTimeout(() => handleInput(false), 0)
+      },
     },
     editable: () => props.editable,
   })
+  
+  // 监听ProseMirror的transaction事件
+  editorView.setProps({
+    ...editorView.props,
+    dispatchTransaction: (tr) => {
+      const newState = editorView.state.apply(tr)
+      editorView.updateState(newState)
+      
+      // 如果transaction修改了文档内容，触发handleInput
+      if (tr.docChanged) {
+        console.log('🔍 Transaction changed document:', {
+          before: tr.before.textContent,
+          after: newState.doc.textContent,
+          isEmpty: newState.doc.textContent.trim() === ''
+        })
+        handleInput(false)
+      }
+    }
+  })
+  
   if (props.autoFocus) editorView.focus()
 })
 onUnmounted(() => {

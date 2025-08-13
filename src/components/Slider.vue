@@ -23,7 +23,7 @@ const getBoundingClientRectViewLeft = (element: HTMLElement) => {
 }
 
 const props = withDefaults(defineProps<{
-  value: number | [number, number]
+  value: number | [number, number] | null | undefined
   disabled?: boolean
   min?: number
   max?: number

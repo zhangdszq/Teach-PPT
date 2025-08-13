@@ -66,7 +66,21 @@ const hideMenuInstance = () => {
 }
 
 const handleInput = debounce(function() {
-  emit('update', editorView.dom.innerHTML)
+  const content = editorView.dom.innerHTML
+  // 检查内容是否为空（只包含空的HTML标签）
+  const textContent = editorView.dom.textContent || ''
+  const isEmpty = textContent.trim() === ''
+  
+  // 调试日志
+  console.log('🔍 备注编辑器输入:', {
+    innerHTML: content,
+    textContent: textContent,
+    isEmpty: isEmpty,
+    finalValue: isEmpty ? '' : content
+  })
+  
+  // 如果内容为空，发送空字符串；否则发送HTML内容
+  emit('update', isEmpty ? '' : content)
 }, 300, { trailing: true })
 
 const handleFocus = () => {

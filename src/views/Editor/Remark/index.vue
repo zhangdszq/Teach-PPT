@@ -42,6 +42,7 @@ watch(() => currentSlide.value.id, () => {
 const remark = computed(() => currentSlide.value?.remark || '')
 
 const handleInput = (content: string) => {
+  console.log('🔍 备注父组件接收到更新:', content)
   slidesStore.updateSlide({ remark: content })
 }
 
