@@ -214,6 +214,29 @@ const api = {
       },
     }).then(response => response.json())
   },
+
+  // 重新生成AI数据
+  regenerateAIData({
+    content,
+    pageNumber,
+    totalPages,
+  }: {
+    content: string
+    pageNumber?: number
+    totalPages?: number
+  }): Promise<any> {
+    return fetch(`${SERVER_URL}/api/ai/regenerate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content,
+        pageNumber,
+        totalPages,
+      }),
+    })
+  },
 }
 
 // 导出 SERVER_URL 供其他组件使用

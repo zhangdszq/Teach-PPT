@@ -8,18 +8,20 @@
     </div>
     
     <template v-if="step === 'setup'">
-      <Input class="input" 
-        ref="inputRef"
-        v-model:value="keyword" 
-        :maxlength="50" 
-        placeholder="请输入英语教学主题，如：字母A的认知与发音练习" 
-        @enter="createOutline()"
-      >
-        <template #suffix>
-          <span class="count">{{ keyword.length }} / 50</span>
+      <div class="input-container">
+        <TextArea 
+          class="textarea" 
+          ref="inputRef"
+          v-model:value="keyword" 
+          :maxlength="500" 
+          placeholder="请输入英语教学主题，如：字母A的认知与发音练习\n\n您可以输入更详细的教学内容描述，包括：\n- 教学目标\n- 重点内容\n- 学习活动等" 
+          :rows="4"
+        />
+        <div class="input-footer">
+          <span class="count">{{ keyword.length }} / 500</span>
           <div class="submit" :class="{ 'disabled': isSubmitDisabled }" type="primary" @click="createOutline()"><IconSend class="icon" /> 生成课程内容</div>
-        </template>
-      </Input>
+        </div>
+      </div>
       <div class="recommends">
         <div class="recommend" 
              v-for="(item, index) in courseTypeOptions" 
@@ -125,7 +127,7 @@ import type { Slide, SlideTheme } from '@/types/slides'
 import message from '@/utils/message'
 import { useMainStore, useSlidesStore } from '@/store'
 import { createBlankSlide, createSlideFromAIData } from '@/utils/slideUtils'
-import Input from '@/components/Input.vue'
+import TextArea from '@/components/TextArea.vue'
 import Button from '@/components/Button.vue'
 import Select from '@/components/Select.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
@@ -386,8 +388,7 @@ const createPPT = async () => {
                       id: slideId,
                       elements: adaptedElements,
                       background: slideData.background || { type: 'solid', color: '#ffffff' },
-                      aiData: aiData, // 保存原始AI数据
-                      templateInfo: useResult.data.templateInfo
+                      aiData: aiData // 保存原始AI数据
                     }
                     
                     console.log('📝 创建适配后的幻灯片:', finalSlide.id, '元素数量:', finalSlide.elements.length)
@@ -398,14 +399,15 @@ const createPPT = async () => {
                   applyFixedViewportSettings(templateSize)
                   
                   // 第二步：将所有文字版幻灯片添加到幻灯片集合
-                  const currentSlides = slideStore.slides
-                  if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
-                    // 如果当前是空幻灯片，直接替换
-                    slideStore.setSlides(processedSlides)
-                  } else {
-                    // 如果已有幻灯片，则添加到现有幻灯片后面
-                    processedSlides.forEach(slide => slideStore.addSlide(slide))
-                  }
+              const currentSlides = slideStore.slides
+              if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+                // 如果当前是空幻灯片，直接替换
+                slideStore.setSlides(processedSlides)
+              }
+              else {
+                // 如果已有幻灯片，则添加到现有幻灯片后面
+                processedSlides.forEach(slide => slideStore.addSlide(slide))
+              }
                   
                   console.log(`✅ 成功添加 ${templateSlides.length} 张文字版幻灯片，当前总数: ${slideStore.slides.length}`)
                   
@@ -417,18 +419,21 @@ const createPPT = async () => {
                   // 回退到原来的方式
                   createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
                 }
-              } catch (useError) {
+              }
+              catch (useError) {
                 console.error('❌ 调用use接口失败:', useError)
                 // 回退到原来的方式
                 createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
               }
-            } else {
+            }
+            else {
               console.log('🔄 使用默认模板创建幻灯片')
               // 使用默认方式创建幻灯片
               createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
             }
           }
-        } catch (pageError) {
+        }
+        catch (pageError) {
           // 页面解析失败，可能是不完整的JSON，继续处理下一页
           console.log('⚠️ 跳过无法解析的页面:', trimmedPageData.substring(0, 50) + '...')
         }
@@ -437,7 +442,8 @@ const createPPT = async () => {
       // 清空已处理的缓冲区
       buffer = ''
       
-    } catch (err) {
+    }
+    catch (err) {
       console.error('❌ 处理缓冲区数据失败:', err)
       // 不显示错误消息，因为可能是数据不完整导致的正常情况
     }
@@ -609,17 +615,18 @@ const processAIDataForDisplay = (aiData: any) => {
           content: word,
           category: 'words'
         })
-      } else if (word && (word.word || word.content)) {
-        components.push({
-          type: 'word',
-          id: `word_${index}`,
-          word: word.word || word.content,
-          pronunciation: word.pronunciation || '',
-          meaning: word.meaning || '',
-          content: `${word.word || word.content}${word.pronunciation ? ` [${word.pronunciation}]` : ''}${word.meaning ? ` - ${word.meaning}` : ''}`,
-          category: 'words'
-        })
       }
+        else if (word && (word.word || word.content)) {
+          components.push({
+            type: 'word',
+            id: `word_${index}`,
+            word: word.word || word.content,
+            pronunciation: word.pronunciation || '',
+            meaning: word.meaning || '',
+            content: `${word.word || word.content}${word.pronunciation ? ` [${word.pronunciation}]` : ''}${word.meaning ? ` - ${word.meaning}` : ''}`,
+            category: 'words'
+          })
+        }
     })
   }
   
@@ -634,16 +641,17 @@ const processAIDataForDisplay = (aiData: any) => {
           content: sentence,
           category: 'sentences'
         })
-      } else if (sentence && (sentence.sentence || sentence.content)) {
-        components.push({
-          type: 'sentence',
-          id: `sentence_${index}`,
-          sentence: sentence.sentence || sentence.content,
-          translation: sentence.translation || '',
-          content: `${sentence.sentence || sentence.content}${sentence.translation ? ` (${sentence.translation})` : ''}`,
-          category: 'sentences'
-        })
       }
+        else if (sentence && (sentence.sentence || sentence.content)) {
+          components.push({
+            type: 'sentence',
+            id: `sentence_${index}`,
+            sentence: sentence.sentence || sentence.content,
+            translation: sentence.translation || '',
+            content: `${sentence.sentence || sentence.content}${sentence.translation ? ` (${sentence.translation})` : ''}`,
+            category: 'sentences'
+          })
+        }
     })
   }
   
@@ -658,16 +666,17 @@ const processAIDataForDisplay = (aiData: any) => {
           content: desc,
           category: 'imageDescriptions'
         })
-      } else if (desc && (desc.description || desc.content)) {
-        components.push({
-          type: 'image',
-          id: `image_${index}`,
-          description: desc.description || desc.content,
-          purpose: desc.purpose || '',
-          content: `${desc.description || desc.content}${desc.purpose ? ` (用途：${desc.purpose})` : ''}`,
-          category: 'imageDescriptions'
-        })
       }
+        else if (desc && (desc.description || desc.content)) {
+          components.push({
+            type: 'image',
+            id: `image_${index}`,
+            description: desc.description || desc.content,
+            purpose: desc.purpose || '',
+            content: `${desc.description || desc.content}${desc.purpose ? ` (用途：${desc.purpose})` : ''}`,
+            category: 'imageDescriptions'
+          })
+        }
     })
   }
   
@@ -685,7 +694,8 @@ const processAIDataForDisplay = (aiData: any) => {
           let type = 'word'
           if (itemText.includes('句子') || itemText.includes('对话') || itemText.length > 20) {
             type = 'sentence'
-          } else if (itemText.includes('图片') || itemText.includes('图像') || itemText.includes('描述')) {
+          }
+          else if (itemText.includes('图片') || itemText.includes('图像') || itemText.includes('描述')) {
             type = 'image'
           }
           
@@ -717,7 +727,8 @@ const processAIDataForDisplay = (aiData: any) => {
   // 如果没有组件但有原始content，保留原始content
   if (components.length === 0 && aiData.content) {
     processedData.content = aiData.content
-  } else {
+  }
+  else {
     // 清空原始content，使用组件数据
     processedData.content = ''
   }
@@ -897,6 +908,21 @@ const getDefaultTemplate = () => {
     align-items: center;
   }
 }
+.input-container {
+  .textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 80px;
+  }
+  
+  .input-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+}
+
 .count {
   font-size: 12px;
   color: #999;

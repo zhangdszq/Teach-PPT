@@ -305,6 +305,51 @@ const closeContentDataDialog = () => {
   currentSlideAIData.value = null
 }
 
+// 重新生成AI数据
+const regenerateAIData = async () => {
+  const currentSlide = slides.value[slideIndex.value]
+  if (!currentSlide) {
+    message.warning('当前没有选中的幻灯片')
+    return
+  }
+  
+  if (!currentSlide.aiData || !currentSlide.aiData.content) {
+    message.warning('当前幻灯片没有AI生成的内容数据')
+    return
+  }
+
+  try {
+    message.info('正在重新生成AI数据...')
+    
+    // 调用后端重新生成接口
+    const response = await api.regenerateAIData({
+      content: currentSlide.aiData.content,
+      pageNumber: slideIndex.value + 1, // 页码从1开始
+      totalPages: slides.value.length
+    })
+    
+    const data = await response.json()
+    
+    if (data.status === 'success' && data.data) {
+      // 使用updateSlide方法更新当前幻灯片的aiData
+      slidesStore.updateSlide({
+        aiData: data.data
+      })
+      
+      // 显示新的AI数据在对话框中
+      currentSlideAIData.value = data.data
+      contentDataDialogVisible.value = true
+      
+      message.success('AI数据重新生成成功')
+    } else {
+      message.error(data.message || 'AI数据重新生成失败')
+    }
+  } catch (error) {
+    console.error('重新生成AI数据错误:', error)
+    message.error('AI数据重新生成失败，请稍后重试')
+  }
+}
+
 // 手动选择模版对话框相关
 const manualTemplateSelectVisible = ref(false)
 
@@ -836,6 +881,12 @@ const contextmenus = (): ContextmenuItem[] => {
     text: '查看内容数据',
     subText: '',
     handler: openContentDataDialog,
+  })
+  
+  baseMenus.push({
+    text: '重新生成AI数据',
+    subText: '',
+    handler: regenerateAIData,
   })
   
   baseMenus.push({
