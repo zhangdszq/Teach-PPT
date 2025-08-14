@@ -127,7 +127,7 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, onUnmounted, provide, ref, watch, watchEffect, computed } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch, watchEffect } from 'vue'
 import { throttle } from 'lodash'
 import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
@@ -347,6 +347,106 @@ const regenerateAIData = async () => {
   } catch (error) {
     console.error('重新生成AI数据错误:', error)
     message.error('AI数据重新生成失败，请稍后重试')
+  }
+}
+
+// AI 生成教学步骤
+const generateTeachingSteps = async () => {
+  const currentSlide = slides.value[slideIndex.value]
+  if (!currentSlide) {
+    message.warning('当前没有选中的幻灯片')
+    return
+  }
+
+  try {
+    message.info('正在截图并生成教学步骤...')
+    
+    // 等待元素渲染完成
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // 使用与ExportServer相同的策略查找目标元素
+    const selectors = [
+      '.viewport-wrapper',
+      '.viewport',
+      '.slide-content',
+      '.editor-content',
+      '[class*="canvas"]',
+      '[class*="viewport"]',
+      '[class*="slide"]'
+    ]
+
+    let targetElement: HTMLElement | null = null
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector) as HTMLElement
+      if (element && element.offsetWidth > 0 && element.offsetHeight > 0) {
+        targetElement = element
+        console.log(`✅ 找到可用元素: ${selector}`, {
+          width: element.offsetWidth,
+          height: element.offsetHeight,
+          className: element.className
+        })
+        break
+      }
+    }
+
+    if (!targetElement) {
+      throw new Error('未找到任何可用的页面元素进行截图')
+    }
+    
+    // 使用工具类截图当前PPT
+    const { captureElement } = await import('@/utils/image')
+    const imageBase64 = await captureElement(targetElement, {
+      backgroundColor: '#ffffff',
+      scale: 1,
+      maxWidth: 800,
+      maxHeight: 600,
+      quality: 0.8
+    })
+    
+    if (!imageBase64) {
+      throw new Error('截图失败')
+    }
+    
+    // 调用后端生成教学步骤接口
+    const response = await fetch('/api/ai/teaching-steps', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        imageBase64: imageBase64,
+        aiData: currentSlide.aiData
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    // 处理非流式响应
+    const result = await response.json()
+    
+    if (result.status === 'success' && result.data) {
+      const teachingStepsContent = result.data
+      
+      // 将生成的教学步骤写入备注栏
+      if (teachingStepsContent.trim()) {
+        slidesStore.updateSlide({
+          remark: teachingStepsContent
+        }, currentSlide.id)
+        message.success('教学步骤已生成并写入备注栏')
+      } else {
+        message.warning('未生成有效的教学步骤内容')
+      }
+    } else {
+      throw new Error(result.message || '教学步骤生成失败')
+    }
+    
+  } catch (error) {
+    console.error('生成教学步骤错误:', error)
+    message.error('生成教学步骤失败，请稍后重试')
   }
 }
 
@@ -899,6 +999,12 @@ const contextmenus = (): ContextmenuItem[] => {
     text: '自动匹配模板',
     subText: '',
     handler: matchTemplate,
+  })
+  
+  baseMenus.push({
+    text: 'AI 生成教学步骤',
+    subText: '',
+    handler: generateTeachingSteps,
   })
   
   baseMenus.push({
