@@ -10,7 +10,9 @@ const schema = new Schema({
 })
 
 export const createDocument = (content: string) => {
-  const htmlString = `<div>${content}</div>`
+  // 处理空内容的情况
+  const safeContent = content.trim() || '<p></p>'
+  const htmlString = `<div>${safeContent}</div>`
   const parser = new window.DOMParser()
   const element = parser.parseFromString(htmlString, 'text/html').body.firstElementChild
   return DOMParser.fromSchema(schema).parse(element as Element)
