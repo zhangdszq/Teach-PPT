@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试互动选择题集成</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .iframe-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .json-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result-display {
+            background: #e8f5e8;
+            border: 1px solid #4CAF50;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>互动选择题集成测试</h1>
+        
+        <div class="controls">
+            <h3>控制面板</h3>
+            <button onclick="loadDefaultData()">加载默认数据</button>
+            <button onclick="loadJsonData()">加载JSON文件数据</button>
+            <button onclick="resetQuiz()">重置题目</button>
+            
+            <div class="json-display" id="jsonDisplay">等待加载数据...</div>
+            <div class="result-display" id="resultDisplay" style="display: none;">等待答题结果...</div>
+        </div>
+        
+        <div class="iframe-container">
+            <h3>互动选择题</h3>
+            <iframe id="quizFrame" src="interactive-quiz.html"></iframe>
+        </div>
+    </div>
+
+    <script>
+        let quizFrame = null;
+        
+        // 等待iframe加载完成
+        document.getElementById('quizFrame').onload = function() {
+            quizFrame = document.getElementById('quizFrame').contentWindow;
+            console.log('Quiz iframe loaded');
+        };
+        
+        // 监听来自iframe的消息
+        window.addEventListener('message', function(event) {
+            console.log('收到来自iframe的消息:', event.data);
+            
+            if (event.data.type === 'iframeReady') {
+                document.getElementById('resultDisplay').textContent = 'iframe已准备就绪，可以开始测试';
+                document.getElementById('resultDisplay').style.display = 'block';
+            } else if (event.data.type === 'quizResult') {
+                const result = event.data.data;
+                const resultText = `答题结果:\n题目: ${result.question}\n选择答案: ${result.selectedAnswer}\n是否正确: ${result.isCorrect ? '正确' : '错误'}\n正确答案: ${result.correctAnswer}`;
+                document.getElementById('resultDisplay').textContent = resultText;
+                document.getElementById('resultDisplay').style.display = 'block';
+            }
+        });
+        
+        // 加载默认数据
+        function loadDefaultData() {
+            const defaultData = {
+                title: "Look and Choose",
+                question: "Who is a man?",
+                image: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y1ZjVmNSIvPgogIDx0ZXh0IHg9IjIwMCIgeT0iMTUwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWbvueJhOWNoOeUteS9jTwvdGV4dD4KICA8L3N2Zz4K",
+                options: [
+                    { text: "mother", value: "mother", correct: false },
+                    { text: "father", value: "father", correct: true }
+                ]
+            };
+            
+            sendDataToQuiz(defaultData);
+            document.getElementById('jsonDisplay').textContent = JSON.stringify(defaultData, null, 2);
+        }
+        
+        // 加载JSON文件数据
+        async function loadJsonData() {
+            try {
+                const response = await fetch('iframe-template-data.json');
+                const jsonData = await response.json();
+                
+                sendDataToQuiz(jsonData);
+                document.getElementById('jsonDisplay').textContent = JSON.stringify(jsonData, null, 2);
+            } catch (error) {
+                console.error('加载JSON数据失败:', error);
+                document.getElementById('jsonDisplay').textContent = '加载JSON数据失败: ' + error.message;
+            }
+        }
+        
+        // 发送数据到quiz iframe
+        function sendDataToQuiz(data) {
+            if (quizFrame) {
+                quizFrame.postMessage({
+                    type: 'initData',
+                    data: data
+                }, '*');
+                console.log('数据已发送到quiz iframe:', data);
+            } else {
+                console.error('Quiz iframe未准备就绪');
+            }
+        }
+        
+        // 重置题目
+        function resetQuiz() {
+            if (quizFrame) {
+                quizFrame.postMessage({
+                    type: 'reset'
+                }, '*');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "content": {
+    "config": {
+      "audioEnable": false
+    },
+    "msg": {
+      "autoPlay": true,
+      "eventType": "200",
+      "page": 2,
+      "questions": [
+        {
+          "options": [
+            {
+              "option": "A",
+              "text": "book"
+            },
+            {
+              "option": "B",
+              "text": "pencil",
+              "correct": true
+            },
+            {
+              "option": "C",
+              "text": "ruler"
+            }
+          ],
+          "question": "which one is the pencil?",
+          "imgUrl": "https://s.vipkidstatic.com/fe-static//mastar/exam/4-03.jpg",
+          "questionCommand": "look and choose",
+          "questionId": "question-1",
+          "questionType": "CHOICE",
+          "subType": "C02"
+        }
+      ]
+    }
+  },
+  "from": "b7ec2a79-dd56-40aa-b5d6-11027d7e3e19",
+  "msgType": "ppt",
+  "time": "18:48:01"
+}

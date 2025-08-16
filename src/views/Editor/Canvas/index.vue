@@ -16,7 +16,30 @@
       v-if="creatingCustomShape"
       @created="data => insertCustomShape(data)"
     />
+    
+    <!-- 互动模版 iframe 模式 -->
+    <iframe 
+      v-if="isInteractiveTemplate"
+      ref="iframeRef"
+      class="interactive-template-iframe"
+      :style="{
+        width: viewportStyles.width * canvasScale + 'px',
+        height: viewportStyles.height * canvasScale + 'px',
+        left: viewportStyles.left + 'px',
+        top: viewportStyles.top + 'px',
+        position: 'absolute',
+        border: 'none',
+        borderRadius: '8px',
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+      }"
+      :src="getIframeUrl()"
+      frameborder="0"
+      allowfullscreen
+    ></iframe>
+
+    <!-- 原始编辑器模式 -->
     <div 
+      v-else
       class="viewport-wrapper"
       :style="{
         width: viewportStyles.width * canvasScale + 'px',
@@ -227,6 +250,119 @@ const openMarkupPanel = () => {
   mainStore.setMarkupPanelState(true)
 }
 
+// iframe 相关功能
+const iframeRef = ref<HTMLIFrameElement>()
+const isInteractiveTemplate = ref(false)
+
+// 记录每个幻灯片的互动模式状态
+const slideInteractiveStates = ref<Map<string, boolean>>(new Map())
+
+// 监听幻灯片切换，管理互动模式状态
+watch(() => slideIndex.value, (newIndex, oldIndex) => {
+  if (oldIndex !== undefined && slides.value[oldIndex]) {
+    // 保存当前幻灯片的互动模式状态
+    const oldSlideId = slides.value[oldIndex].id
+    slideInteractiveStates.value.set(oldSlideId, isInteractiveTemplate.value)
+  }
+  
+  if (slides.value[newIndex]) {
+    // 恢复新幻灯片的互动模式状态
+    const newSlideId = slides.value[newIndex].id
+    const savedState = slideInteractiveStates.value.get(newSlideId)
+    isInteractiveTemplate.value = savedState || false
+  }
+}, { immediate: true })
+
+// 获取 iframe URL
+const getIframeUrl = () => {
+  // return 'public/interactive-quiz.html'
+  // return 'public/drag-word-quiz.html'
+  return 'public/word-shooter-game.html'
+}
+
+// iframe 消息处理
+const sendMessageToIframe = (message: any) => {
+  if (iframeRef.value?.contentWindow) {
+    try {
+      // 深度克隆对象以避免 DataCloneError
+      const clonedMessage = JSON.parse(JSON.stringify(message))
+      iframeRef.value.contentWindow.postMessage(clonedMessage, '*')
+    }
+    catch (error) {
+      console.error('发送消息到iframe失败:', error)
+    }
+  }
+}
+
+const handleIframeMessage = (event: MessageEvent) => {
+  console.log('收到来自 iframe 的消息:', event.data)
+  
+  if (event.data.type === 'iframeReady') {
+    // iframe准备就绪，发送初始化数据
+    const hardcodedData = {
+      content: {
+        config: {
+          audioEnable: false
+        },
+        msg: {
+          autoPlay: true,
+          eventType: '200',
+          page: 2,
+          questions: [
+            {
+              options: [
+                {
+                  option: 'A',
+                  text: 'book'
+                },
+                {
+                  option: 'B',
+                  text: 'pencil',
+                  correct: true
+                },
+                {
+                  option: 'C',
+                  text: 'ruler'
+                }
+              ],
+              question: 'which one is the pencil?',
+              imgUrl: 'https://s.vipkidstatic.com/fe-static/temp/test_pencil.jpeg',
+              questionCommand: 'look and choose',
+              questionId: 'question-1',
+              questionType: 'CHOICE',
+              subType: 'C02'
+            }
+          ]
+        }
+      },
+      from: 'b7ec2a79-dd56-40aa-b5d6-11027d7e3e19',
+      msgType: 'ppt',
+      time: '18:48:01'
+    }
+    
+    sendMessageToIframe({
+      type: 'initData',
+      data: hardcodedData
+    })
+  }
+  else if (event.data.type === 'requestAIData') {
+    // iframe请求AI数据
+    const currentSlide = slides.value[slideIndex.value]
+    sendMessageToIframe({
+      type: 'aiDataResponse',
+      data: currentSlide?.aiData || null
+    })
+  }
+  else if (event.data.type === 'testMessage') {
+    // 处理测试消息
+    console.log('收到iframe测试消息:', event.data.data)
+    message.info(`iframe消息: ${event.data.data}`)
+  }
+}
+
+onMounted(() => window.addEventListener('message', handleIframeMessage))
+onUnmounted(() => window.removeEventListener('message', handleIframeMessage))
+
 // 查看内容数据对话框相关
 const contentDataDialogVisible = ref(false)
 const currentSlideAIData = ref(null)
@@ -273,13 +409,16 @@ const matchTemplate = async () => {
         message.success(`找到 ${matchResults.length} 个匹配的模板`)
         console.log('模板匹配结果:', matchResults)
         // 这里可以添加显示匹配结果的逻辑，比如打开一个对话框展示匹配的模板
-      } else {
+      }
+      else {
         message.warning('未找到匹配的模板')
       }
-    } else {
+    }
+    else {
       message.error(data.message || '模板匹配失败')
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('模板匹配错误:', error)
     message.error('模板匹配失败，请稍后重试')
   }
@@ -341,10 +480,12 @@ const regenerateAIData = async () => {
       contentDataDialogVisible.value = true
       
       message.success('AI数据重新生成成功')
-    } else {
+    }
+    else {
       message.error(data.message || 'AI数据重新生成失败')
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('重新生成AI数据错误:', error)
     message.error('AI数据重新生成失败，请稍后重试')
   }
@@ -437,14 +578,17 @@ const generateTeachingSteps = async () => {
           remark: teachingStepsContent
         }, currentSlide.id)
         message.success('教学步骤已生成并写入备注栏')
-      } else {
+      }
+      else {
         message.warning('未生成有效的教学步骤内容')
       }
-    } else {
+    }
+    else {
       throw new Error(result.message || '教学步骤生成失败')
     }
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('生成教学步骤错误:', error)
     message.error('生成教学步骤失败，请稍后重试')
   }
@@ -543,17 +687,20 @@ const handleManualTemplateSelect = async (template: any) => {
           console.error('幻灯片元素数据异常:', newSlideData)
           message.warning('模版数据格式异常：缺少有效的元素数据')
         }
-      } else {
+      }
+      else {
         console.error('后端返回数据格式异常:', responseData)
         message.warning('模版数据格式异常：缺少幻灯片数据')
       }
       
-    } else {
+    }
+    else {
       message.error(data.message || '模版应用失败，请重试')
     }
     
     manualTemplateSelectVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('手动选择模版错误:', error)
     message.error('模版应用失败，请稍后重试')
   }
@@ -776,6 +923,8 @@ const convertFontSizePtToPx = (html: string, ratio: number) => {
   })
 }
 
+
+
 watch(handleElementId, () => {
   mainStore.setActiveGroupElementId('')
 })
@@ -827,7 +976,8 @@ onUnmounted(() => {
   try {
     emitter.off(EmitterEvents.OPEN_AI_IMAGE_DIALOG, openAIImageDialog)
     if (textFormatPainter.value) mainStore.setTextFormatPainter(null)
-  } catch (error) {
+  }
+  catch (error) {
     console.warn('清理事件监听器时出错:', error)
   }
 })
@@ -915,56 +1065,19 @@ const insertCustomShape = (data: CreateCustomShapeData) => {
 
 const contextmenus = (): ContextmenuItem[] => {
   const baseMenus = [
+    { text: '粘贴', subText: 'Ctrl + V', handler: pasteElement },
+    { text: '全选', subText: 'Ctrl + A', handler: selectAllElements },
+    { text: '标尺', subText: showRuler.value ? '√' : '', handler: toggleRuler },
     {
-      text: '粘贴',
-      subText: 'Ctrl + V',
-      handler: pasteElement,
+      text: '网格线', handler: () => mainStore.setGridLineSize(gridLineSize.value ? 0 : 50), children: [
+        { text: '无', subText: gridLineSize.value === 0 ? '√' : '', handler: () => mainStore.setGridLineSize(0) },
+        { text: '小', subText: gridLineSize.value === 25 ? '√' : '', handler: () => mainStore.setGridLineSize(25) },
+        { text: '中', subText: gridLineSize.value === 50 ? '√' : '', handler: () => mainStore.setGridLineSize(50) },
+        { text: '大', subText: gridLineSize.value === 100 ? '√' : '', handler: () => mainStore.setGridLineSize(100) }
+      ]
     },
-    {
-      text: '全选',
-      subText: 'Ctrl + A',
-      handler: selectAllElements,
-    },
-    {
-      text: '标尺',
-      subText: showRuler.value ? '√' : '',
-      handler: toggleRuler,
-    },
-    {
-      text: '网格线',
-      handler: () => mainStore.setGridLineSize(gridLineSize.value ? 0 : 50),
-      children: [
-        {
-          text: '无',
-          subText: gridLineSize.value === 0 ? '√' : '',
-          handler: () => mainStore.setGridLineSize(0),
-        },
-        {
-          text: '小',
-          subText: gridLineSize.value === 25 ? '√' : '',
-          handler: () => mainStore.setGridLineSize(25),
-        },
-        {
-          text: '中',
-          subText: gridLineSize.value === 50 ? '√' : '',
-          handler: () => mainStore.setGridLineSize(50),
-        },
-        {
-          text: '大',
-          subText: gridLineSize.value === 100 ? '√' : '',
-          handler: () => mainStore.setGridLineSize(100),
-        },
-      ],
-    },
-    {
-      text: 'PPT模板制作',
-      subText: '',
-      handler: openMarkupPanel,
-    },
-    {
-      text: '重置当前页',
-      handler: deleteAllElements,
-    },
+    { text: 'PPT模板制作', subText: '', handler: openMarkupPanel },
+    { text: '重置当前页', handler: deleteAllElements },
     { divider: true },
   ]
 
@@ -977,41 +1090,30 @@ const contextmenus = (): ContextmenuItem[] => {
     })
   }
 
-  baseMenus.push({
-    text: '查看内容数据',
-    subText: '',
-    handler: openContentDataDialog,
-  })
-  
-  baseMenus.push({
-    text: '重新生成AI数据',
-    subText: '',
-    handler: regenerateAIData,
-  })
-  
-  baseMenus.push({
-    text: '手动选择模版',
-    subText: '',
-    handler: openManualTemplateSelect,
-  })
-  
-  baseMenus.push({
-    text: '自动匹配模板',
-    subText: '',
-    handler: matchTemplate,
-  })
-  
-  baseMenus.push({
-    text: 'AI 生成教学步骤',
-    subText: '',
-    handler: generateTeachingSteps,
-  })
-  
-  baseMenus.push({
-    text: '幻灯片放映',
-    subText: 'F5',
-    handler: enterScreeningFromStart,
-  })
+  baseMenus.push(
+    { text: '查看内容数据', subText: '', handler: openContentDataDialog },
+    { text: '重新生成AI数据', subText: '', handler: regenerateAIData },
+    { text: '手动选择模版', subText: '', handler: openManualTemplateSelect },
+    { text: '自动匹配模板', subText: '', handler: matchTemplate },
+    { text: 'AI 生成教学步骤', subText: '', handler: generateTeachingSteps }
+  )
+
+  // iframe 相关菜单
+  baseMenus.push(isInteractiveTemplate.value ?
+    {
+      text: '退出互动模式', subText: '', handler: () => {
+        isInteractiveTemplate.value = false
+        message.success('已退出互动模式')
+      }
+    } :
+    {
+      text: '切换到互动模式', subText: '', handler: () => {
+        isInteractiveTemplate.value = true
+        message.success('已切换到互动模式')
+      }
+    }
+  )
+  baseMenus.push({ text: '幻灯片放映', subText: 'F5', handler: enterScreeningFromStart })
 
   return baseMenus
 }
@@ -1027,14 +1129,17 @@ provide(injectKeySlideScale, canvasScale)
   background-color: $lightGray;
   position: relative;
 }
+
 .drag-mask {
   cursor: grab;
   @include absolute-0();
 }
+
 .viewport-wrapper {
   position: absolute;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.01), 0 0 12px 0 rgba(0, 0, 0, 0.1);
 }
+
 .viewport {
   position: absolute;
   top: 0;
@@ -1042,23 +1147,21 @@ provide(injectKeySlideScale, canvasScale)
   transform-origin: 0 0;
 }
 
-.content-data-dialog {
-  .data-content {
-    max-height: 500px;
-    overflow: auto;
-    background-color: #f5f5f5;
-    border-radius: 4px;
-    padding: 16px;
-    
-    pre {
-      margin: 0;
-      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-      font-size: 12px;
-      line-height: 1.4;
-      color: #333;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-  }
+.content-data-dialog .data-content {
+  max-height: 500px;
+  overflow: auto;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.content-data-dialog .data-content pre {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 </style>

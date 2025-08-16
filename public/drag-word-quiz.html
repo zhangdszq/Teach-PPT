@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拖拽选词题</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFB347, #FFCC5C);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .quiz-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 1000px;
+            height: 562.5px;
+            max-width: 95vw;
+            max-height: 95vh;
+            position: relative;
+            overflow: hidden;
+            transform-origin: center center;
+        }
+
+        .quiz-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, #FF6B35, #F7931E, #FFD23F);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .corner-decoration {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #FF6B35;
+            border-radius: 50%;
+        }
+
+        .corner-decoration.top-left {
+            top: 15px;
+            left: 15px;
+        }
+
+        .corner-decoration.top-right {
+            top: 15px;
+            right: 15px;
+        }
+
+        .corner-decoration.bottom-left {
+            bottom: 15px;
+            left: 15px;
+        }
+
+        .corner-decoration.bottom-right {
+            bottom: 15px;
+            right: 15px;
+        }
+
+        .title-banner {
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px auto 30px;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+            border: 3px dashed #FFD23F;
+            max-width: 400px;
+        }
+
+        .question-text {
+            text-align: center;
+            font-size: 20px;
+            color: #FF6B35;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        .content-area {
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
+            justify-content: space-between;
+            height: 300px;
+        }
+
+        .sentence-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sentence-container {
+            background: #f8f9fa;
+            border: 2px dashed #FFD23F;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 120px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+
+        .sentence-word {
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .drop-zone {
+            min-width: 80px;
+            min-height: 40px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            background: #f0f0f0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #FF6B35;
+            background: #fff5f0;
+            transform: scale(1.05);
+        }
+
+        .drop-zone.filled {
+            border-color: #4CAF50;
+            background: #e8f5e8;
+        }
+
+        .drop-zone.correct {
+            border-color: #4CAF50;
+            background: #e8f5e8;
+            animation: correctPulse 0.6s ease-in-out;
+        }
+
+        .drop-zone.incorrect {
+            border-color: #f44336;
+            background: #ffebee;
+            animation: incorrectShake 0.6s ease-in-out;
+        }
+
+        .words-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .words-bank {
+            background: #f8f9fa;
+            border: 2px solid #FFD23F;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 200px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-content: flex-start;
+        }
+
+        .draggable-word {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: grab;
+            transition: all 0.3s ease;
+            user-select: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .draggable-word:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .draggable-word:active {
+            cursor: grabbing;
+        }
+
+        .draggable-word.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .draggable-word.used {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .draggable-word.correct {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+
+        .draggable-word.incorrect {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+        }
+
+        @keyframes correctPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes incorrectShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .reset-button {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .reset-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
+
+        .check-button {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .check-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .check-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1000px) or (max-height: 562.5px) {
+            .quiz-container {
+                transform: scale(calc(min(95vw / 1000px, 95vh / 562.5px)));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .quiz-container {
+                width: 95vw;
+                height: auto;
+                min-height: 500px;
+                transform: none;
+                padding: 20px;
+            }
+            
+            .content-area {
+                flex-direction: column;
+                gap: 20px;
+                height: auto;
+            }
+            
+            .title-banner {
+                font-size: 20px;
+                padding: 12px 20px;
+                max-width: 300px;
+            }
+            
+            .question-text {
+                font-size: 18px;
+            }
+            
+            .draggable-word {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            
+            .corner-decoration {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quiz-container {
+                padding: 15px;
+                border-radius: 15px;
+            }
+            
+            .title-banner {
+                font-size: 18px;
+                padding: 10px 15px;
+                margin: 15px auto 20px;
+            }
+            
+            .question-text {
+                font-size: 16px;
+                margin-bottom: 20px;
+            }
+            
+            .draggable-word {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            
+            .corner-decoration {
+                width: 15px;
+                height: 15px;
+            }
+            
+            .corner-decoration.top-left,
+            .corner-decoration.top-right {
+                top: 10px;
+            }
+            
+            .corner-decoration.bottom-left,
+            .corner-decoration.bottom-right {
+                bottom: 10px;
+            }
+            
+            .corner-decoration.top-left,
+            .corner-decoration.bottom-left {
+                left: 10px;
+            }
+            
+            .corner-decoration.top-right,
+            .corner-decoration.bottom-right {
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="corner-decoration top-left"></div>
+        <div class="corner-decoration top-right"></div>
+        <div class="corner-decoration bottom-left"></div>
+        <div class="corner-decoration bottom-right"></div>
+        
+        <div class="title-banner" id="titleBanner">
+            Drag and Drop
+        </div>
+        
+        <div class="question-text" id="questionText">
+            请将单词拖拽到正确的位置完成句子
+        </div>
+        
+        <div class="content-area">
+            <div class="sentence-section">
+                <div class="sentence-container" id="sentenceContainer">
+                    <!-- 动态生成句子和空白位置 -->
+                </div>
+            </div>
+            
+            <div class="words-section">
+                <div class="words-bank" id="wordsBank">
+                    <!-- 动态生成可拖拽的单词 -->
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center;">
+            <button class="check-button" id="checkButton" onclick="checkAnswer()">检查答案</button>
+            <button class="reset-button" id="resetButton" onclick="resetQuiz()">重置题目</button>
+        </div>
+    </div>
+
+    <script>
+        let currentQuizData = null;
+        let isAnswerChecked = false;
+        
+        // 默认题目数据
+        const defaultQuizData = {
+            title: "Drag and Drop",
+            question: "请将单词拖拽到正确的位置完成句子",
+            sentence: "The ___ is ___ in the ___.",
+            correctAnswers: ["cat", "sleeping", "garden"],
+            words: ["cat", "sleeping", "garden", "dog", "running", "house", "bird", "flying"]
+        };
+        
+        // 初始化页面
+        function initQuiz(quizData = defaultQuizData) {
+            currentQuizData = quizData;
+            isAnswerChecked = false;
+            
+            // 更新标题
+            document.getElementById('titleBanner').textContent = quizData.title || 'Drag and Drop';
+            
+            // 更新问题
+            document.getElementById('questionText').textContent = quizData.question || '请将单词拖拽到正确的位置完成句子';
+            
+            // 生成句子和空白位置
+            generateSentence(quizData.sentence, quizData.correctAnswers);
+            
+            // 生成单词库
+            generateWordsBank(quizData.words);
+            
+            // 重置检查按钮
+            const checkButton = document.getElementById('checkButton');
+            checkButton.disabled = false;
+            checkButton.textContent = '检查答案';
+        }
+        
+        // 生成句子和空白位置
+        function generateSentence(sentence, correctAnswers) {
+            const container = document.getElementById('sentenceContainer');
+            container.innerHTML = '';
+            
+            const parts = sentence.split('___');
+            let answerIndex = 0;
+            
+            parts.forEach((part, index) => {
+                // 添加文本部分
+                if (part.trim()) {
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'sentence-word';
+                    textSpan.textContent = part.trim();
+                    container.appendChild(textSpan);
+                }
+                
+                // 添加空白位置（除了最后一个部分）
+                if (index < parts.length - 1) {
+                    const dropZone = document.createElement('div');
+                    dropZone.className = 'drop-zone';
+                    dropZone.setAttribute('data-answer-index', answerIndex);
+                    dropZone.setAttribute('data-correct-answer', correctAnswers[answerIndex]);
+                    dropZone.addEventListener('dragover', handleDragOver);
+                    dropZone.addEventListener('drop', handleDrop);
+                    dropZone.addEventListener('dragleave', handleDragLeave);
+                    container.appendChild(dropZone);
+                    answerIndex++;
+                }
+            });
+        }
+        
+        // 生成单词库
+        function generateWordsBank(words) {
+            const wordsBank = document.getElementById('wordsBank');
+            wordsBank.innerHTML = '';
+            
+            // 打乱单词顺序
+            const shuffledWords = [...words].sort(() => Math.random() - 0.5);
+            
+            shuffledWords.forEach(word => {
+                const wordElement = document.createElement('div');
+                wordElement.className = 'draggable-word';
+                wordElement.textContent = word;
+                wordElement.draggable = true;
+                wordElement.setAttribute('data-word', word);
+                wordElement.addEventListener('dragstart', handleDragStart);
+                wordElement.addEventListener('dragend', handleDragEnd);
+                wordsBank.appendChild(wordElement);
+            });
+        }
+        
+        // 拖拽开始
+        function handleDragStart(e) {
+            if (isAnswerChecked) return;
+            
+            e.dataTransfer.setData('text/plain', e.target.getAttribute('data-word'));
+            e.target.classList.add('dragging');
+        }
+        
+        // 拖拽结束
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+        
+        // 拖拽悬停
+        function handleDragOver(e) {
+            if (isAnswerChecked) return;
+            
+            e.preventDefault();
+            e.target.classList.add('drag-over');
+        }
+        
+        // 离开拖拽区域
+        function handleDragLeave(e) {
+            e.target.classList.remove('drag-over');
+        }
+        
+        // 放置
+        function handleDrop(e) {
+            if (isAnswerChecked) return;
+            
+            e.preventDefault();
+            e.target.classList.remove('drag-over');
+            
+            const word = e.dataTransfer.getData('text/plain');
+            const dropZone = e.target;
+            
+            // 如果已经有单词，先移除
+            if (dropZone.querySelector('.sentence-word')) {
+                const existingWord = dropZone.querySelector('.sentence-word');
+                returnWordToBank(existingWord.textContent);
+                dropZone.removeChild(existingWord);
+            }
+            
+            // 添加新单词
+            const wordElement = document.createElement('span');
+            wordElement.className = 'sentence-word';
+            wordElement.textContent = word;
+            dropZone.appendChild(wordElement);
+            dropZone.classList.add('filled');
+            
+            // 标记原单词为已使用
+            const originalWord = document.querySelector(`[data-word="${word}"]:not(.used)`);
+            if (originalWord) {
+                originalWord.classList.add('used');
+            }
+        }
+        
+        // 将单词返回到单词库
+        function returnWordToBank(word) {
+            const wordElement = document.querySelector(`[data-word="${word}"].used`);
+            if (wordElement) {
+                wordElement.classList.remove('used');
+            }
+        }
+        
+        // 检查答案
+        function checkAnswer() {
+            if (isAnswerChecked) return;
+            
+            const dropZones = document.querySelectorAll('.drop-zone');
+            let allCorrect = true;
+            let allFilled = true;
+            
+            dropZones.forEach(zone => {
+                const wordElement = zone.querySelector('.sentence-word');
+                const correctAnswer = zone.getAttribute('data-correct-answer');
+                
+                if (!wordElement) {
+                    allFilled = false;
+                    return;
+                }
+                
+                const userAnswer = wordElement.textContent;
+                const originalWordElement = document.querySelector(`[data-word="${userAnswer}"]`);
+                
+                if (userAnswer === correctAnswer) {
+                    zone.classList.add('correct');
+                    if (originalWordElement) {
+                        originalWordElement.classList.add('correct');
+                    }
+                } else {
+                    zone.classList.add('incorrect');
+                    if (originalWordElement) {
+                        originalWordElement.classList.add('incorrect');
+                    }
+                    allCorrect = false;
+                }
+            });
+            
+            if (!allFilled) {
+                alert('请完成所有空白位置！');
+                return;
+            }
+            
+            isAnswerChecked = true;
+            const checkButton = document.getElementById('checkButton');
+            checkButton.disabled = true;
+            checkButton.textContent = allCorrect ? '全部正确！' : '有错误，请重试';
+            
+            // 向父页面发送结果
+            sendResultToParent({
+                type: 'dragDropResult',
+                data: {
+                    question: currentQuizData.question,
+                    userAnswers: Array.from(dropZones).map(zone => {
+                        const wordElement = zone.querySelector('.sentence-word');
+                        return wordElement ? wordElement.textContent : '';
+                    }),
+                    correctAnswers: currentQuizData.correctAnswers,
+                    isAllCorrect: allCorrect
+                }
+            });
+        }
+        
+        // 重置题目
+        function resetQuiz() {
+            initQuiz(currentQuizData);
+        }
+        
+        // 向父页面发送消息
+        function sendResultToParent(message) {
+            if (window.parent && window.parent !== window) {
+                try {
+                    window.parent.postMessage(message, '*');
+                } catch (error) {
+                    console.error('发送消息到父页面失败:', error);
+                }
+            }
+        }
+        
+        // 监听来自父页面的消息
+        window.addEventListener('message', function(event) {
+            console.log('收到来自父页面的消息:', event.data);
+            
+            if (event.data.type === 'initData' && event.data.data) {
+                // 处理从父页面接收的题目数据
+                const aiData = event.data.data;
+                
+                // 尝试从AI数据中提取题目信息
+                let quizData = defaultQuizData;
+                
+                if (aiData.content && aiData.content.msg && aiData.content.msg.questions && aiData.content.msg.questions.length > 0) {
+                    // 解析JSON数据结构
+                    const questionData = aiData.content.msg.questions[0]; // 取第一个题目
+                    
+                    quizData = {
+                        title: questionData.questionCommand || 'Drag and Drop',
+                        question: questionData.question || defaultQuizData.question,
+                        sentence: questionData.sentence || defaultQuizData.sentence,
+                        correctAnswers: questionData.correctAnswers || defaultQuizData.correctAnswers,
+                        words: questionData.words || defaultQuizData.words
+                    };
+                } else if (aiData.content) {
+                    // 兼容旧格式
+                    quizData = {
+                        title: aiData.title || defaultQuizData.title,
+                        question: aiData.content.question || aiData.content || defaultQuizData.question,
+                        sentence: aiData.sentence || defaultQuizData.sentence,
+                        correctAnswers: aiData.correctAnswers || defaultQuizData.correctAnswers,
+                        words: aiData.words || defaultQuizData.words
+                    };
+                }
+                
+                initQuiz(quizData);
+            }
+        });
+        
+        // 动态调整页面缩放
+        function adjustScale() {
+            const container = document.querySelector('.quiz-container');
+            const baseWidth = 1000;
+            const baseHeight = 562.5;
+            
+            // 获取当前视窗尺寸
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // 计算可用空间（减去padding）
+            const availableWidth = viewportWidth * 0.95;
+            const availableHeight = viewportHeight * 0.95;
+            
+            // 计算缩放比例
+            const scaleX = availableWidth / baseWidth;
+            const scaleY = availableHeight / baseHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // 不超过原始尺寸
+            
+            // 在移动设备上使用不同的策略
+            if (viewportWidth <= 768) {
+                container.style.transform = 'none';
+                container.style.width = '95vw';
+                container.style.height = 'auto';
+            } else {
+                container.style.transform = `scale(${scale})`;
+                container.style.width = `${baseWidth}px`;
+                container.style.height = `${baseHeight}px`;
+            }
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', function() {
+            initQuiz();
+            adjustScale();
+            
+            // 通知父页面iframe已准备就绪
+            sendResultToParent({
+                type: 'iframeReady',
+                data: 'Drag and drop quiz iframe is ready'
+            });
+        });
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', adjustScale);
+        
+        // 监听设备方向变化
+        window.addEventListener('orientationchange', function() {
+            setTimeout(adjustScale, 100);
+        });
+    </script>
+</body>
+</html>

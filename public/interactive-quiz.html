@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互动选择题</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFB347, #FFCC5C);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .quiz-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 1000px;
+            height: 562.5px;
+            max-width: 95vw;
+            max-height: 95vh;
+            position: relative;
+            overflow: hidden;
+            transform-origin: center center;
+        }
+
+        .quiz-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, #FF6B35, #F7931E, #FFD23F);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .corner-decoration {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #FF6B35;
+            border-radius: 50%;
+        }
+
+        .corner-decoration.top-left {
+            top: 15px;
+            left: 15px;
+        }
+
+        .corner-decoration.top-right {
+            top: 15px;
+            right: 15px;
+        }
+
+        .corner-decoration.bottom-left {
+            bottom: 15px;
+            left: 15px;
+        }
+
+        .corner-decoration.bottom-right {
+            bottom: 15px;
+            right: 15px;
+        }
+
+        .title-banner {
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px auto 30px;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+            border: 3px dashed #FFD23F;
+            max-width: 400px;
+        }
+
+        .question-text {
+            text-align: center;
+            font-size: 20px;
+            color: #FF6B35;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        .content-area {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .image-section {
+            flex: 1;
+            text-align: center;
+        }
+
+        .quiz-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border: 4px solid #FFD23F;
+        }
+
+        .options-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .option-button {
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white;
+            border: none;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .option-button:active {
+            transform: translateY(0);
+        }
+
+        .option-button.correct {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            animation: correctPulse 0.6s ease-in-out;
+        }
+
+        .option-button.incorrect {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            animation: incorrectShake 0.6s ease-in-out;
+        }
+
+        .option-button.disabled {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        @keyframes correctPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes incorrectShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+
+
+        .reset-button {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .reset-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
+
+        /* 基于1000x562.5基准尺寸的响应式缩放 */
+        @media (max-width: 1000px) or (max-height: 562.5px) {
+            .quiz-container {
+                transform: scale(calc(min(95vw / 1000px, 95vh / 562.5px)));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .quiz-container {
+                width: 95vw;
+                height: auto;
+                min-height: 400px;
+                transform: none;
+                padding: 20px;
+            }
+            
+            .content-area {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .title-banner {
+                font-size: 20px;
+                padding: 12px 20px;
+                max-width: 300px;
+            }
+            
+            .question-text {
+                font-size: 18px;
+            }
+            
+            .option-button {
+                padding: 15px 20px;
+                font-size: 16px;
+            }
+            
+            .corner-decoration {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quiz-container {
+                padding: 15px;
+                border-radius: 15px;
+            }
+            
+            .title-banner {
+                font-size: 18px;
+                padding: 10px 15px;
+                margin: 15px auto 20px;
+            }
+            
+            .question-text {
+                font-size: 16px;
+                margin-bottom: 20px;
+            }
+            
+            .option-button {
+                padding: 12px 15px;
+                font-size: 14px;
+            }
+            
+            .corner-decoration {
+                width: 15px;
+                height: 15px;
+            }
+            
+            .corner-decoration.top-left,
+            .corner-decoration.top-right {
+                top: 10px;
+            }
+            
+            .corner-decoration.bottom-left,
+            .corner-decoration.bottom-right {
+                bottom: 10px;
+            }
+            
+            .corner-decoration.top-left,
+            .corner-decoration.bottom-left {
+                left: 10px;
+            }
+            
+            .corner-decoration.top-right,
+            .corner-decoration.bottom-right {
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="corner-decoration top-left"></div>
+        <div class="corner-decoration top-right"></div>
+        <div class="corner-decoration bottom-left"></div>
+        <div class="corner-decoration bottom-right"></div>
+        
+        <div class="title-banner" id="titleBanner">
+            Look and Choose
+        </div>
+        
+        <div class="question-text" id="questionText">
+            Who is a man?
+        </div>
+        
+        <div class="content-area">
+            <div class="image-section">
+                <img id="quizImage" class="quiz-image" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y1ZjVmNSIvPgogIDx0ZXh0IHg9IjIwMCIgeT0iMTUwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWbvueJhOWNoOeUteS9jTwvdGV4dD4KPC9zdmc+" alt="Quiz Image">
+            </div>
+            
+            <div class="options-section" id="optionsSection">
+                <button class="option-button" data-option="mother">mother</button>
+                <button class="option-button" data-option="father">father</button>
+            </div>
+        </div>
+        
+
+        
+        <div style="text-align: center;">
+            <button class="reset-button" id="resetButton" onclick="resetQuiz()">重置题目</button>
+        </div>
+    </div>
+
+    <script>
+        let currentQuizData = null;
+        let selectedAnswer = null;
+        
+        // 默认题目数据
+        const defaultQuizData = {
+            title: "Look and Choose",
+            question: "Who is a man?",
+            image: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y1ZjVmNSIvPgogIDx0ZXh0IHg9IjIwMCIgeT0iMTUwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuWbvueJhOWNoOeUteS9jTwvdGV4dD4KICA8L3N2Zz4K",
+            options: [
+                { text: "mother", value: "mother", correct: false },
+                { text: "father", value: "father", correct: true }
+            ]
+        };
+        
+        // 初始化页面
+        function initQuiz(quizData = defaultQuizData) {
+            currentQuizData = quizData;
+            
+            // 更新标题
+            document.getElementById('titleBanner').textContent = quizData.title || 'Look and Choose';
+            
+            // 更新问题
+            document.getElementById('questionText').textContent = quizData.question || 'Who is a man?';
+            
+            // 更新图片
+            const imageElement = document.getElementById('quizImage');
+            if (quizData.image) {
+                imageElement.src = quizData.image;
+                imageElement.alt = quizData.question || 'Quiz Image';
+            }
+            
+            // 更新选项
+            const optionsSection = document.getElementById('optionsSection');
+            optionsSection.innerHTML = '';
+            
+            if (quizData.options && quizData.options.length > 0) {
+                quizData.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.className = 'option-button';
+                    button.textContent = option.text;
+                    button.setAttribute('data-option', option.value);
+                    button.onclick = () => selectOption(option.value, option.correct);
+                    optionsSection.appendChild(button);
+                });
+            }
+            
+            // 重置状态
+            selectedAnswer = null;
+        }
+        
+        // 选择选项
+        function selectOption(value, isCorrect) {
+            if (selectedAnswer !== null) return; // 防止重复选择
+            
+            selectedAnswer = value;
+            const buttons = document.querySelectorAll('.option-button');
+            // 禁用所有按钮
+            buttons.forEach(btn => {
+                btn.classList.add('disabled');
+                const btnValue = btn.getAttribute('data-option');
+                
+                if (btnValue === value) {
+                    // 当前选择的按钮
+                    if (isCorrect) {
+                        btn.classList.add('correct');
+                    } else {
+                        btn.classList.add('incorrect');
+                    }
+                } else {
+                    // 显示正确答案
+                    const option = currentQuizData.options.find(opt => opt.value === btnValue);
+                    if (option && option.correct) {
+                        btn.classList.add('correct');
+                    }
+                }
+            });
+            
+            // 向父页面发送结果
+            sendResultToParent({
+                type: 'quizResult',
+                data: {
+                    question: currentQuizData.question,
+                    selectedAnswer: value,
+                    isCorrect: isCorrect,
+                    correctAnswer: currentQuizData.options.find(opt => opt.correct)?.value
+                }
+            });
+        }
+        
+        // 重置题目
+        function resetQuiz() {
+            initQuiz(currentQuizData);
+        }
+        
+        // 向父页面发送消息
+        function sendResultToParent(message) {
+            if (window.parent && window.parent !== window) {
+                try {
+                    window.parent.postMessage(message, '*');
+                } catch (error) {
+                    console.error('发送消息到父页面失败:', error);
+                }
+            }
+        }
+        
+        // 监听来自父页面的消息
+        window.addEventListener('message', function(event) {
+            console.log('收到来自父页面的消息:', event.data);
+            
+            if (event.data.type === 'initData' && event.data.data) {
+                // 处理从父页面接收的题目数据
+                const aiData = event.data.data;
+                
+                // 尝试从AI数据中提取题目信息
+                let quizData = defaultQuizData;
+                
+                if (aiData.content && aiData.content.msg && aiData.content.msg.questions && aiData.content.msg.questions.length > 0) {
+                    // 解析JSON数据结构
+                    const questionData = aiData.content.msg.questions[0]; // 取第一个题目
+                    
+                    // 转换选项格式
+                    const options = questionData.options.map(opt => ({
+                        text: opt.text,
+                        value: opt.option,
+                        correct: opt.correct === true
+                    }));
+                    
+                    quizData = {
+                        title: questionData.questionCommand || 'Look and Choose',
+                        question: questionData.question || defaultQuizData.question,
+                        image: questionData.imgUrl || defaultQuizData.image,
+                        options: options
+                    };
+                } else if (aiData.content) {
+                    // 兼容旧格式
+                    quizData = {
+                        title: aiData.title || defaultQuizData.title,
+                        question: aiData.content.question || aiData.content || defaultQuizData.question,
+                        image: aiData.image || defaultQuizData.image,
+                        options: aiData.options || defaultQuizData.options
+                    };
+                }
+                
+                initQuiz(quizData);
+            }
+        });
+        
+        // 动态调整页面缩放
+        function adjustScale() {
+            const container = document.querySelector('.quiz-container');
+            const baseWidth = 1000;
+            const baseHeight = 562.5;
+            
+            // 获取当前视窗尺寸
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // 计算可用空间（减去padding）
+            const availableWidth = viewportWidth * 0.95;
+            const availableHeight = viewportHeight * 0.95;
+            
+            // 计算缩放比例
+            const scaleX = availableWidth / baseWidth;
+            const scaleY = availableHeight / baseHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // 不超过原始尺寸
+            
+            // 在移动设备上使用不同的策略
+            if (viewportWidth <= 768) {
+                container.style.transform = 'none';
+                container.style.width = '95vw';
+                container.style.height = 'auto';
+            } else {
+                container.style.transform = `scale(${scale})`;
+                container.style.width = `${baseWidth}px`;
+                container.style.height = `${baseHeight}px`;
+            }
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', function() {
+            initQuiz();
+            adjustScale();
+            
+            // 通知父页面iframe已准备就绪
+            sendResultToParent({
+                type: 'iframeReady',
+                data: 'Interactive quiz iframe is ready'
+            });
+        });
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', adjustScale);
+        
+        // 监听设备方向变化
+        window.addEventListener('orientationchange', function() {
+            setTimeout(adjustScale, 100);
+        });
+    </script>
+</body>
+</html>

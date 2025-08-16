@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互动模版演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .ai-data {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .message-log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .message-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 互动模版演示页面</h1>
+        <p>这是一个演示页面，展示如何在iframe中接收和处理来自父页面的aiData。</p>
+        
+        <h2>📊 接收到的AI数据：</h2>
+        <div class="ai-data" id="aiDataDisplay">等待接收数据...</div>
+        
+        <h2>🔄 操作按钮：</h2>
+        <button onclick="requestAIData()">请求AI数据</button>
+        <button onclick="sendTestMessage()">发送测试消息</button>
+        <button onclick="clearLog()">清空日志</button>
+        
+        <h2>📝 消息日志：</h2>
+        <div class="message-log" id="messageLog"></div>
+    </div>
+
+    <script>
+        let aiData = null;
+        
+        // 显示AI数据
+        function displayAIData(data) {
+            const display = document.getElementById('aiDataDisplay');
+            if (data) {
+                display.textContent = JSON.stringify(data, null, 2);
+                aiData = data;
+            } else {
+                display.textContent = '暂无数据';
+            }
+        }
+        
+        // 添加消息到日志
+        function addMessageToLog(message, type = 'info') {
+            const log = document.getElementById('messageLog');
+            const messageItem = document.createElement('div');
+            messageItem.className = 'message-item';
+            messageItem.innerHTML = `
+                <strong>[${new Date().toLocaleTimeString()}]</strong> 
+                <span style="color: ${type === 'sent' ? '#4CAF50' : type === 'received' ? '#2196F3' : '#FFC107'}">
+                    ${type === 'sent' ? '发送' : type === 'received' ? '接收' : '信息'}
+                </span>: 
+                ${typeof message === 'object' ? JSON.stringify(message) : message}
+            `;
+            log.appendChild(messageItem);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // 监听来自父页面的消息
+        window.addEventListener('message', function(event) {
+            addMessageToLog(event.data, 'received');
+            
+            if (event.data.type === 'initData') {
+                displayAIData(event.data.data);
+                addMessageToLog('收到初始化数据', 'info');
+            } else if (event.data.type === 'aiDataResponse') {
+                displayAIData(event.data.data);
+                addMessageToLog('收到AI数据响应', 'info');
+            }
+        });
+        
+        // 向父页面请求AI数据
+        function requestAIData() {
+            const message = { type: 'requestAIData' };
+            window.parent.postMessage(message, '*');
+            addMessageToLog(message, 'sent');
+        }
+        
+        // 发送测试消息
+        function sendTestMessage() {
+            const message = { 
+                type: 'testMessage', 
+                data: '这是来自iframe的测试消息',
+                timestamp: new Date().toISOString()
+            };
+            window.parent.postMessage(message, '*');
+            addMessageToLog(message, 'sent');
+        }
+        
+        // 清空日志
+        function clearLog() {
+            document.getElementById('messageLog').innerHTML = '';
+        }
+        
+        // 页面加载时初始化
+        window.addEventListener('load', function() {
+            addMessageToLog('iframe页面已加载完成', 'info');
+            
+            // 向父页面发送准备就绪消息
+            window.parent.postMessage({ type: 'iframeReady' }, '*');
+            addMessageToLog('已向父页面发送准备就绪消息', 'info');
+        });
+    </script>
+</body>
+</html>
