@@ -275,9 +275,9 @@ watch(() => slideIndex.value, (newIndex, oldIndex) => {
 
 // 获取 iframe URL
 const getIframeUrl = () => {
-  // return 'public/interactive-quiz.html'
+  return 'public/interactive-quiz.html'
   // return 'public/drag-word-quiz.html'
-  return 'public/word-shooter-game.html'
+  // return 'public/word-shooter-game.html'
 }
 
 // iframe 消息处理
