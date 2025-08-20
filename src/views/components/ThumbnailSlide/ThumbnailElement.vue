@@ -27,6 +27,7 @@ import BaseTableElement from '@/views/components/element/TableElement/BaseTableE
 import BaseLatexElement from '@/views/components/element/LatexElement/BaseLatexElement.vue'
 import BaseVideoElement from '@/views/components/element/VideoElement/BaseVideoElement.vue'
 import BaseAudioElement from '@/views/components/element/AudioElement/BaseAudioElement.vue'
+import BaseIframeElement from '@/views/components/element/IframeElement/BaseIframeElement.vue'
 
 
 const props = defineProps<{
@@ -45,6 +46,7 @@ const currentElementComponent = computed<unknown>(() => {
     [ElementTypes.LATEX]: BaseLatexElement,
     [ElementTypes.VIDEO]: BaseVideoElement,
     [ElementTypes.AUDIO]: BaseAudioElement,
+    [ElementTypes.IFRAME]: BaseIframeElement,
   
   }
   return elementTypeMap[props.elementInfo.type] || null

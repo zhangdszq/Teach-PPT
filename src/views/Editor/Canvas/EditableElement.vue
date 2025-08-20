@@ -40,6 +40,7 @@ import TableElement from '@/views/components/element/TableElement/index.vue'
 import LatexElement from '@/views/components/element/LatexElement/index.vue'
 import VideoElement from '@/views/components/element/VideoElement/index.vue'
 import AudioElement from '@/views/components/element/AudioElement/index.vue'
+import IframeElement from '@/views/components/element/IframeElement/index.vue'
 
 
 const props = defineProps<{
@@ -62,6 +63,7 @@ const currentElementComponent = computed<unknown>(() => {
     [ElementTypes.LATEX]: LatexElement,
     [ElementTypes.VIDEO]: VideoElement,
     [ElementTypes.AUDIO]: AudioElement,
+    [ElementTypes.IFRAME]: IframeElement,
   
   }
   return elementTypeMap[props.elementInfo.type] || null
@@ -83,7 +85,7 @@ const contextmenus = (): ContextmenuItem[] => {
     }]
   }
 
-  const baseMenus = [
+  const baseMenus: ContextmenuItem[] = [
     {
       text: '剪切',
       subText: 'Ctrl + X',

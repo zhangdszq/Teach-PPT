@@ -11,6 +11,18 @@
             box-sizing: border-box;
         }
 
+        /* 隐藏滚动条 */
+        html, body {
+            overflow: hidden;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
         body {
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #FFB347, #FFCC5C);

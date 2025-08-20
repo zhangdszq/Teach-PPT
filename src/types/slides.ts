@@ -30,6 +30,7 @@ export const enum ElementTypes {
   LATEX = 'latex',
   VIDEO = 'video',
   AUDIO = 'audio',
+  IFRAME = 'iframe',
 }
 
 /**
@@ -642,14 +643,35 @@ export interface PPTAudioElement extends PPTBaseElement {
  * 
  * src: iframe地址
  * 
- * aiData: AI数据，用于传递给iframe
+ * templateId: 互动模板ID
  * 
- * isInteractive: 是否为互动模板
+ * templateVersion: 模板版本
+ * 
+ * interactiveType: 互动类型
+ * 
+ * interactiveConfig: 互动配置
+ * 
+ * sandbox: 沙箱属性
+ * 
+ * allowFullscreen: 是否允许全屏
  */
+export interface PPTIframeElement extends PPTBaseElement {
+  type: 'iframe'
+  src: string
+  templateId?: string
+  templateVersion?: string
+  interactiveType?: string
+  interactiveConfig?: {
+    data?: any
+    settings?: any
+  }
+  sandbox?: string[]
+  allowFullscreen?: boolean
+}
 
 
 
-export type PPTElement = PPTTextElement | PPTImageElement | PPTShapeElement | PPTLineElement | PPTChartElement | PPTTableElement | PPTLatexElement | PPTVideoElement | PPTAudioElement
+export type PPTElement = PPTTextElement | PPTImageElement | PPTShapeElement | PPTLineElement | PPTChartElement | PPTTableElement | PPTLatexElement | PPTVideoElement | PPTAudioElement | PPTIframeElement
 
 export type AnimationType = 'in' | 'out' | 'attention'
 export type AnimationTrigger = 'click' | 'meantime' | 'auto'

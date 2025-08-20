@@ -53,7 +53,8 @@ const iframeStyles = computed(() => ({
   position: 'absolute' as const,
   border: 'none',
   borderRadius: '8px',
-  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
+  overflow: 'hidden'
 }))
 
 // 发送消息到iframe
@@ -231,5 +232,19 @@ defineExpose({
 <style lang="scss" scoped>
 .interactive-template-iframe {
   z-index: 10;
+  
+  // 隐藏滚动条
+  overflow: hidden;
+  
+  // 确保iframe内容也隐藏滚动条
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  
+  // Firefox
+  scrollbar-width: none;
+  
+  // IE和Edge
+  -ms-overflow-style: none;
 }
 </style>
