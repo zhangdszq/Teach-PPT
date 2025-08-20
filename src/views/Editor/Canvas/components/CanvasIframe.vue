@@ -88,8 +88,8 @@ const handleIframeMessage = async (event: MessageEvent) => {
     })
     
     // 检查是否需要生成互动图片
-    if (currentSlide?.isInteractive && hasInteractiveImages()) {
-      console.log('🎮 检测到互动模式需要生成图片，开始处理...')
+    if (hasInteractiveImages()) {
+      console.log('🎮 检测到需要生成图片，开始处理...')
       try {
         await processInteractiveImages()
         console.log('✅ 互动图片生成完成')

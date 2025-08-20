@@ -36,8 +36,8 @@ export default () => {
         return
       }
 
-      if (!slide.isInteractive || !slide.templateData) {
-        console.log('📄 当前幻灯片不是互动模式或没有模板数据')
+      if (!slide.templateData) {
+        console.log('📄 当前幻灯片没有模板数据')
         return
       }
 
@@ -232,7 +232,7 @@ export default () => {
     const currentSlideIndex = targetSlideIndex !== undefined ? targetSlideIndex : slideIndex.value
     const slide = slides.value[currentSlideIndex]
     
-    if (!slide || !slide.isInteractive || !slide.templateData) {
+    if (!slide || !slide.templateData) {
       return false
     }
     
@@ -247,7 +247,7 @@ export default () => {
     const currentSlideIndex = targetSlideIndex !== undefined ? targetSlideIndex : slideIndex.value
     const slide = slides.value[currentSlideIndex]
     
-    if (!slide || !slide.isInteractive || !slide.templateData) {
+    if (!slide || !slide.templateData) {
       return 0
     }
     

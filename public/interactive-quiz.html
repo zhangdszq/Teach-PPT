@@ -347,7 +347,7 @@
             const imageElement = document.getElementById('quizImage');
             if (quizData.image) {
                 imageElement.src = quizData.image;
-                imageElement.alt = quizData.question || 'Quiz Image';
+                imageElement.alt = quizData.imgAlt || quizData.question || 'Quiz Image';
             }
             
             // 更新选项
@@ -435,8 +435,26 @@
                 // 尝试从AI数据中提取题目信息
                 let quizData = defaultQuizData;
                 
-                if (aiData.content && aiData.content.msg && aiData.content.msg.questions && aiData.content.msg.questions.length > 0) {
-                    // 解析JSON数据结构
+                // 新的数据结构：直接在data下有questions数组
+                if (aiData.questions && aiData.questions.length > 0) {
+                    const questionData = aiData.questions[0]; // 取第一个题目
+                    
+                    // 转换选项格式
+                    const options = questionData.options.map(opt => ({
+                        text: opt.text,
+                        value: opt.option,
+                        correct: opt.correct === true
+                    }));
+                    
+                    quizData = {
+                        title: questionData.questionCommand || 'Look and Choose',
+                        question: questionData.question || defaultQuizData.question,
+                        image: questionData.imgUrl || defaultQuizData.image,
+                        imgAlt: questionData.imgAlt || questionData.question || 'Quiz Image',
+                        options: options
+                    };
+                } else if (aiData.content && aiData.content.msg && aiData.content.msg.questions && aiData.content.msg.questions.length > 0) {
+                    // 兼容旧格式：content.msg.questions
                     const questionData = aiData.content.msg.questions[0]; // 取第一个题目
                     
                     // 转换选项格式
@@ -450,14 +468,16 @@
                         title: questionData.questionCommand || 'Look and Choose',
                         question: questionData.question || defaultQuizData.question,
                         image: questionData.imgUrl || defaultQuizData.image,
+                        imgAlt: questionData.imgAlt || questionData.question || 'Quiz Image',
                         options: options
                     };
                 } else if (aiData.content) {
-                    // 兼容旧格式
+                    // 兼容更旧格式
                     quizData = {
                         title: aiData.title || defaultQuizData.title,
                         question: aiData.content.question || aiData.content || defaultQuizData.question,
                         image: aiData.image || defaultQuizData.image,
+                        imgAlt: aiData.imgAlt || aiData.content.question || aiData.content || 'Quiz Image',
                         options: aiData.options || defaultQuizData.options
                     };
                 }
