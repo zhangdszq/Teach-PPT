@@ -5,7 +5,7 @@ import type { AIPPTSlide } from '@/types/AIPPT'
 import { useSlidesStore } from '@/store'
 import useAddSlidesOrElements from './useAddSlidesOrElements'
 import useSlideHandler from './useSlideHandler'
-import API from '@/services'
+import { aiImageService } from '@/services/aiImageService'
 import message from '@/utils/message'
 
 interface ImgPoolItem {
@@ -449,48 +449,19 @@ export default () => {
       // 设置超时（根据重试次数增加超时时间）
       const timeout = 30000 + (retryCount * 10000) // 30秒 + 每次重试10秒
       
-      // 创建一个带超时的 Promise
-      const fetchWithTimeout = Promise.race([
-        API.AI_Image({ 
-          prompt, 
-          model: 'jimeng',
-          width: element.width || 800,
-          height: element.height || 600
-        }),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error(`请求超时 (${timeout/1000}秒)`)), timeout)
-        )
-      ])
+      // 使用统一的 AI 图片生成服务
+      const response = await aiImageService.generateImage({
+        prompt,
+        model: 'jimeng',
+        width: element.width || 800,
+        height: element.height || 600
+      })
       
-      const response = await fetchWithTimeout
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => response.statusText)
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      if (!response.success || !response.imageUrl) {
+        throw new Error(response.error || '图片生成失败')
       }
       
-      const data = await response.json()
-      console.log(`📡 API响应:`, data)
-      
-      let imageUrl = ''
-      
-      // 处理即梦服务的响应格式
-      if (data.status === 'success' && data.data) {
-        if (data.data.data && data.data.data.image_url) {
-          imageUrl = data.data.data.image_url
-        }
-        else if (data.data.image_url) {
-          imageUrl = data.data.image_url
-        }
-        else {
-          console.error('❌ 响应格式异常，未找到图片URL:', data)
-          throw new Error('响应中未找到图片URL')
-        }
-      }
-      else {
-        console.error('❌ API返回失败状态:', data)
-        throw new Error(data.message || data.errorMessage || '图片生成失败')
-      }
+      const imageUrl = response.imageUrl
       
       if (imageUrl) {
         console.log(`🔄 更新元素 ${targetElementId} 的图片URL: ${imageUrl}`)

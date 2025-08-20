@@ -385,12 +385,26 @@ const contextmenus = (): ContextmenuItem[] => {
   baseMenus.push(isInteractiveTemplate.value ?
     {
       text: '退出互动模式', subText: '', handler: () => {
-        isInteractiveTemplate.value = false
+        // 通过修改当前幻灯片的属性来退出互动模式
+        const slide = slides.value[slideIndex.value]
+        if (slide) {
+          slidesStore.updateSlide({
+            isInteractive: false,
+            iframeSrc: undefined
+          })
+        }
       }
     } :
     {
       text: '切换到互动模式', subText: '', handler: () => {
-        isInteractiveTemplate.value = true
+        // 通过修改当前幻灯片的属性来进入互动模式
+        const slide = slides.value[slideIndex.value]
+        if (slide) {
+          slidesStore.updateSlide({
+            isInteractive: true,
+            iframeSrc: '/interactive-quiz.html'
+          })
+        }
       }
     }
   )

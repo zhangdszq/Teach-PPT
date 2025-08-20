@@ -1,33 +1,27 @@
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 
-// 记录每个幻灯片的互动模式状态
+// 根据幻灯片类型自动判断是否为互动模板
 export const useSlideInteractiveStates = () => {
   const slidesStore = useSlidesStore()
   const { slideIndex, slides } = storeToRefs(slidesStore)
   
-  const slideInteractiveStates = ref<Map<string, boolean>>(new Map())
-  const isInteractiveTemplate = ref(false)
-  
-  // 管理幻灯片切换时的互动模式状态
-  const handleSlideChange = (newIndex: number, oldIndex?: number) => {
-    if (oldIndex !== undefined && slides.value[oldIndex]) {
-      // 保存当前幻灯片的互动模式状态
-      const oldSlideId = slides.value[oldIndex].id
-      slideInteractiveStates.value.set(oldSlideId, isInteractiveTemplate.value)
-    }
+  // 根据当前幻灯片的类型和属性自动判断是否为互动模板
+  const isInteractiveTemplate = computed(() => {
+    const currentSlide = slides.value[slideIndex.value]
+    if (!currentSlide) return false
     
-    if (slides.value[newIndex]) {
-      // 恢复新幻灯片的互动模式状态
-      const newSlideId = slides.value[newIndex].id
-      const savedState = slideInteractiveStates.value.get(newSlideId)
-      isInteractiveTemplate.value = savedState || false
-    }
+    // 检查幻灯片类型是否为 iframe 或者 isInteractive 属性为 true
+    return currentSlide.type === 'iframe' || currentSlide.isInteractive === true
+  })
+  
+  // 空的处理函数，保持接口兼容性
+  const handleSlideChange = (newIndex: number, oldIndex?: number) => {
+    // 不需要手动管理状态，由 computed 自动计算
   }
   
   return {
-    slideInteractiveStates,
     isInteractiveTemplate,
     handleSlideChange
   }

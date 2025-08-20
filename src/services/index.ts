@@ -1,4 +1,5 @@
 import axios from './config'
+import { aiImageService } from './aiImageService'
 
 // 开发环境使用本地服务器，生产环境使用远程服务器
 export const SERVER_URL = (import.meta.env.MODE === 'development') ? '' : 'https://server.pptist.cn'
@@ -111,25 +112,40 @@ const api = {
     })
   },
 
-  AI_Image({
+  async AI_Image({
     prompt,
     model = 'jimeng',
     width,
     height,
   }: AIImagePayload): Promise<any> {
-    // 调用我们新创建的后端服务
-    return fetch(`${SERVER_URL}/api/image/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt,
-        model,
-        width,
-        height,
-      }),
+    // 使用统一的 AI 图片生成服务
+    const result = await aiImageService.generateImage({
+      prompt,
+      model,
+      width,
+      height
     })
+    
+    // 为了保持向后兼容，返回类似原始 fetch 响应的格式
+    if (result.success && result.imageUrl) {
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          status: 'success',
+          data: {
+            image_url: result.imageUrl
+          }
+        })
+      }
+    }
+    
+    return {
+      ok: false,
+      json: () => Promise.resolve({
+        status: 'error',
+        message: result.error || '图片生成失败'
+      })
+    }
   },
 
   SaveTemplate({

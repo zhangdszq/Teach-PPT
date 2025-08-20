@@ -41,6 +41,7 @@ import LatexElement from '@/views/components/element/LatexElement/index.vue'
 import VideoElement from '@/views/components/element/VideoElement/index.vue'
 import AudioElement from '@/views/components/element/AudioElement/index.vue'
 
+
 const props = defineProps<{
   elementInfo: PPTElement
   elementIndex: number
@@ -61,6 +62,7 @@ const currentElementComponent = computed<unknown>(() => {
     [ElementTypes.LATEX]: LatexElement,
     [ElementTypes.VIDEO]: VideoElement,
     [ElementTypes.AUDIO]: AudioElement,
+  
   }
   return elementTypeMap[props.elementInfo.type] || null
 })

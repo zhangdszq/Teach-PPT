@@ -99,8 +99,6 @@ onMounted(() => {
     const line = lines[i]
     const trimmedLine = line.trim()
     
-    console.log(`🔍 解析第${i+1}行: "${line}" (trimmed: "${trimmedLine}")`)
-    
     if (!trimmedLine) {
       console.log(`⚪ 第${i+1}行为空行，跳过`)
       continue
@@ -114,8 +112,6 @@ onMounted(() => {
       const content = headerMatch[2].trim()
       currentTitleLevel = lv
       isAfterTitle = true
-      
-      console.log(`✅ 识别为标题: 层级${lv}, 内容"${content}"`)
       
       result.push({
         id: nanoid(),
@@ -131,8 +127,6 @@ onMounted(() => {
       const extraIndentLevel = Math.floor(indentSpaces / 4)
       const lv = currentTitleLevel + 1 + extraIndentLevel
       
-      console.log(`✅ 识别为标题后列表项: 层级${lv}, 内容"${content}"`)
-      
       result.push({
         id: nanoid(),
         content,
@@ -146,8 +140,6 @@ onMounted(() => {
       const extraIndentLevel = Math.floor(indentSpaces / 4)
       const lv = 4 + extraIndentLevel
       
-      console.log(`✅ 识别为普通列表项: 层级${lv}, 内容"${content}"`)
-      
       result.push({
         id: nanoid(),
         content,
@@ -158,8 +150,6 @@ onMounted(() => {
     else if (trimmedLine) {
       // 普通文本行
       const content = trimmedLine
-      
-      console.log(`✅ 识别为普通文本: 层级4, 内容"${content}"`)
       
       result.push({
         id: nanoid(),

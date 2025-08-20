@@ -635,6 +635,19 @@ export interface PPTAudioElement extends PPTBaseElement {
   ext?: string
 }
 
+/**
+ * iframe元素
+ * 
+ * type: 元素类型（iframe）
+ * 
+ * src: iframe地址
+ * 
+ * aiData: AI数据，用于传递给iframe
+ * 
+ * isInteractive: 是否为互动模板
+ */
+
+
 
 export type PPTElement = PPTTextElement | PPTImageElement | PPTShapeElement | PPTLineElement | PPTChartElement | PPTTableElement | PPTLatexElement | PPTVideoElement | PPTAudioElement
 
@@ -714,7 +727,7 @@ export interface SectionTag {
   title?: string
 }
 
-export type SlideType = 'cover' | 'contents' | 'transition' | 'content' | 'end'
+export type SlideType = 'cover' | 'contents' | 'transition' | 'content' | 'end' | 'iframe'
 
 /**
  * 幻灯片页面
@@ -748,6 +761,9 @@ export interface Slide {
   sectionTag?: SectionTag
   type?: SlideType
   aiData?: any
+  templateData?: any
+  iframeSrc?: string
+  isInteractive?: boolean
 }
 
 /**

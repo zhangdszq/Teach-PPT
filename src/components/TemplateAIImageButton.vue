@@ -51,7 +51,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import useTemplateAIImage from '@/hooks/useTemplateAIImage'
+import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
 
 const {
   isProcessing,
@@ -62,8 +62,8 @@ const {
   hasTemplateImages,
   getTemplateImageCount,
   hasAllTemplateImages,
-  getAllTemplateImageCount,
-} = useTemplateAIImage()
+  getAllTemplateImageCount
+} = useTemplateAIImageMethods()
 
 const hasCurrentSlideImages = computed(() => hasTemplateImages())
 const currentSlideImageCount = computed(() => getTemplateImageCount())

@@ -59,7 +59,7 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 import message from '@/utils/message'
-import API from '@/services'
+import { aiImageService } from '@/services/aiImageService'
 import Input from '@/components/Input.vue'
 import Button from '@/components/Button.vue'
 
@@ -89,49 +89,26 @@ const generateImage = async () => {
   const loadingMessage = message.success('正在生成图片，请稍候...', { duration: 0 })
 
   try {
-    const response = await API.AI_Image({ 
-      prompt: prompt.value, 
-      model: selectedModel.value 
+    const result = await aiImageService.generateImage({
+      prompt: prompt.value,
+      model: selectedModel.value
     })
-    const data = await response.json()
     
-    let imageUrl = ''
-    
-    // 处理不同服务的响应格式
-    if (selectedModel.value === 'jimeng') {
-      // 火山引擎即梦服务的响应格式
-      if (data.status === 'success' && data.data && data.data.image_url) {
-        imageUrl = data.data.image_url
-      }
-      else {
-        throw new Error(data.message || data.error_message || '即梦图片生成失败')
-      }
-    }
-    else {
-      // 其他AI服务的响应格式
-      if (data.success && data.data && data.data.url) {
-        imageUrl = data.data.url
-      }
-      else {
-        throw new Error(data.message || '图片生成失败')
-      }
-    }
-    
-    if (imageUrl) {
-      generatedImages.value.unshift(imageUrl)
-      loadingMessage.close()
+    if (result.success && result.imageUrl) {
+      generatedImages.value.unshift(result.imageUrl)
       message.success('图片生成成功！')
     }
     else {
-      throw new Error('未获取到图片URL')
+      throw new Error(result.error || '图片生成失败')
     }
+    
   }
-  catch (error) {
-    console.error('AI图片生成失败:', error)
-    loadingMessage.close()
-    message.error('图片生成失败，请稍后重试')
+  catch (error: any) {
+    console.error('图片生成失败:', error)
+    message.error(error.message || '图片生成失败，请稍后重试')
   }
   finally {
+    loadingMessage.close()
     isGenerating.value = false
   }
 }

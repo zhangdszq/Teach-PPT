@@ -9,7 +9,7 @@
     <!-- 手动选择模板对话框 -->
     <TemplateSelectDialog 
       :visible="manualTemplateSelectVisible"
-      :aiData="currentSlideAIData"
+      :aiData="currentSlideData?.aiData || null"
       @close="closeManualTemplateSelect"
       @select="handleManualTemplateSelect"
     />
@@ -34,7 +34,7 @@ import { ref, computed, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
 import { useSlidesStore, useMainStore } from '@/store'
-import useTemplateAIImage from '@/hooks/useTemplateAIImage'
+import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
 import api from '@/services'
 import message from '@/utils/message'
 import SaveTemplateDialog from '../../SaveTemplateDialog.vue'
@@ -50,13 +50,13 @@ const { showMarkupPanel } = storeToRefs(mainStore)
 const saveTemplateDialogVisible = ref(false)
 const manualTemplateSelectVisible = ref(false)
 const contentDataDialogVisible = ref(false)
-const currentSlideAIData = ref(null)
+const currentSlideData = ref<any>(null)
 
-const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImage()
+const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImageMethods()
 
 const formattedContentData = computed(() => {
-  if (!currentSlideAIData.value) return '暂无数据'
-  return JSON.stringify(currentSlideAIData.value, null, 2)
+  if (!currentSlideData.value) return '暂无数据'
+  return JSON.stringify(currentSlideData.value, null, 2)
 })
 
 // 打开保存模板对话框
@@ -76,12 +76,20 @@ const openContentDataDialog = () => {
     return
   }
   
-  if (!slide.aiData) {
-    message.warning('当前幻灯片没有AI生成的数据')
-    return
+  // 构建完整的幻灯片数据对象（不包含 elements 字段）
+  const slideData = {
+    id: slide.id,
+    background: slide.background,
+    animations: slide.animations,
+    turningMode: slide.turningMode,
+    remark: slide.remark,
+    ...(slide.aiData && { aiData: slide.aiData }),
+    ...(slide.templateData && { templateData: slide.templateData }),
+    ...(slide.isInteractive !== undefined && { isInteractive: slide.isInteractive }),
+    ...(slide.iframeSrc && { iframeSrc: slide.iframeSrc })
   }
   
-  currentSlideAIData.value = slide.aiData
+  currentSlideData.value = slideData
   contentDataDialogVisible.value = true
 }
 
@@ -114,7 +122,21 @@ const regenerateAIData = async () => {
         aiData: data.data
       })
       
-      currentSlideAIData.value = data.data
+      // 重新构建完整的幻灯片数据
+      const slide = slides.value[slideIndex.value]
+      const slideData = {
+        id: slide.id,
+        elements: slide.elements,
+        background: slide.background,
+        animations: slide.animations,
+        turningMode: slide.turningMode,
+        remark: slide.remark,
+        aiData: data.data,
+        ...(slide.templateData && { templateData: slide.templateData }),
+        ...(slide.isInteractive !== undefined && { isInteractive: slide.isInteractive }),
+        ...(slide.iframeSrc && { iframeSrc: slide.iframeSrc })
+      }
+      currentSlideData.value = slideData
       contentDataDialogVisible.value = true
       
       message.success('AI数据重新生成成功')
@@ -176,7 +198,9 @@ const openManualTemplateSelect = () => {
     return
   }
   
-  currentSlideAIData.value = slide.aiData
+  // 为手动模板选择保存aiData
+  const aiDataForTemplate = slide.aiData || {}
+  currentSlideData.value = { aiData: aiDataForTemplate }
   manualTemplateSelectVisible.value = true
 }
 

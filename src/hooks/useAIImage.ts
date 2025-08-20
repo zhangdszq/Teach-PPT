@@ -4,7 +4,7 @@ import { useMainStore, useSlidesStore } from '@/store'
 import type { PPTImageElement } from '@/types/slides'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import message from '@/utils/message'
-import API from '@/services'
+import { aiImageService } from '@/services/aiImageService'
 
 export default () => {
   const mainStore = useMainStore()
@@ -62,44 +62,18 @@ export default () => {
     try {
       console.log(`🎨 开始为幻灯片 ${targetSlideIndex} 中的元素 ${targetElementId} 生成图片`)
       
-      const response = await API.AI_Image({ 
-        prompt, 
-        model, 
-        width: imageWidth, 
-        height: imageHeight 
+      const result = await aiImageService.generateImage({
+        prompt,
+        model,
+        width: imageWidth,
+        height: imageHeight
       })
-      const data = await response.json()
       
-      let imageUrl = ''
+      if (!result.success || !result.imageUrl) {
+        throw new Error(result.error || 'AI图片生成失败')
+      }
       
-      // 处理不同服务的响应格式
-      if (model === 'jimeng') {
-        // 火山引擎即梦服务的响应格式 - 处理嵌套的data结构
-        if (data.status === 'success' && data.data) {
-          // 检查是否有嵌套的data结构
-          if (data.data.data && data.data.data.image_url) {
-            imageUrl = data.data.data.image_url
-          }
-          else if (data.data.image_url) {
-            imageUrl = data.data.image_url
-          }
-          else {
-            throw new Error('响应中未找到图片URL')
-          }
-        }
-        else {
-          throw new Error(data.message || data.errorMessage || '即梦图片生成失败')
-        }
-      }
-      else {
-        // 其他AI服务的响应格式
-        if (data.success && data.data && data.data.url) {
-          imageUrl = data.data.url
-        }
-        else {
-          throw new Error(data.message || '图片生成失败')
-        }
-      }
+      const imageUrl = result.imageUrl
       
       if (!imageUrl) {
         throw new Error('未获取到图片URL')

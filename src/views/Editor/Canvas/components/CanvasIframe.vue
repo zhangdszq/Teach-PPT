@@ -14,6 +14,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
+import useInteractiveImageGeneration from '@/hooks/useInteractiveImageGeneration'
 import message from '@/utils/message'
 
 interface Props {
@@ -34,9 +35,15 @@ const emit = defineEmits<{
 
 const slidesStore = useSlidesStore()
 const { slideIndex, slides } = storeToRefs(slidesStore)
+const { processInteractiveImages, hasInteractiveImages } = useInteractiveImageGeneration()
 
 const iframeRef = ref<HTMLIFrameElement>()
-const iframeUrl = ref('public/interactive-quiz.html')
+
+// 从当前幻灯片获取 iframe URL
+const iframeUrl = computed(() => {
+  const currentSlide = slides.value[slideIndex.value]
+  return currentSlide?.iframeSrc || 'public/interactive-quiz.html'
+})
 
 const iframeStyles = computed(() => ({
   width: props.viewportStyles.width * props.canvasScale + 'px',
@@ -63,56 +70,46 @@ const sendMessageToIframe = (message: any) => {
 }
 
 // 处理来自iframe的消息
-const handleIframeMessage = (event: MessageEvent) => {
+const handleIframeMessage = async (event: MessageEvent) => {
   console.log('收到来自 iframe 的消息:', event.data)
   
   if (event.data.type === 'iframeReady') {
     // iframe准备就绪，发送初始化数据
-    const hardcodedData = {
-      content: {
-        config: {
-          audioEnable: false
-        },
-        msg: {
-          autoPlay: true,
-          eventType: '200',
-          page: 2,
-          questions: [
-            {
-              options: [
-                {
-                  option: 'A',
-                  text: 'book'
-                },
-                {
-                  option: 'B',
-                  text: 'pencil',
-                  correct: true
-                },
-                {
-                  option: 'C',
-                  text: 'ruler'
-                }
-              ],
-              question: 'which one is the pencil?',
-              imgUrl: 'https://s.vipkidstatic.com/fe-static/temp/test_pencil.jpeg',
-              questionCommand: 'look and choose',
-              questionId: 'question-1',
-              questionType: 'CHOICE',
-              subType: 'C02'
-            }
-          ]
-        }
-      },
-      from: 'b7ec2a79-dd56-40aa-b5d6-11027d7e3e19',
-      msgType: 'ppt',
-      time: '18:48:01'
+    const currentSlide = slides.value[slideIndex.value]
+    
+    console.log('🔍 当前幻灯片数据结构:', {
+      slideIndex: slideIndex.value,
+      slideId: currentSlide?.id,
+      hasTemplateData: !!currentSlide?.templateData,
+      hasAiData: !!currentSlide?.aiData,
+      isInteractive: currentSlide?.isInteractive,
+      templateDataKeys: currentSlide?.templateData ? Object.keys(currentSlide.templateData) : [],
+      slideKeys: currentSlide ? Object.keys(currentSlide) : []
+    })
+    
+    // 检查是否需要生成互动图片
+    if (currentSlide?.isInteractive && hasInteractiveImages()) {
+      console.log('🎮 检测到互动模式需要生成图片，开始处理...')
+      try {
+        await processInteractiveImages()
+        console.log('✅ 互动图片生成完成')
+      }
+      catch (error) {
+        console.error('❌ 互动图片生成失败:', error)
+      }
     }
     
-    sendMessageToIframe({
-      type: 'initData',
-      data: hardcodedData
-    })
+    // 直接从幻灯片的templateData字段获取数据
+    if (currentSlide?.templateData) {
+      console.log('✅ 发送互动模板数据到iframe:', currentSlide.templateData)
+      sendMessageToIframe({
+        type: 'initData',
+        data: currentSlide.templateData
+      })
+    }
+    else {
+      console.warn('❌ 当前幻灯片没有templateData数据')
+    }
   }
   else if (event.data.type === 'requestAIData') {
     // iframe请求AI数据
@@ -122,10 +119,34 @@ const handleIframeMessage = (event: MessageEvent) => {
       data: currentSlide?.aiData || null
     })
   }
+  else if (event.data.type === 'question-result') {
+    // 处理问题答题结果
+    handleQuestionResult(event.data)
+  }
   else if (event.data.type === 'testMessage') {
     // 处理测试消息
     console.log('收到iframe测试消息:', event.data.data)
     message.info(`iframe消息: ${event.data.data}`)
+  }
+}
+
+// 处理问题答题结果
+const handleQuestionResult = (result: any) => {
+  const { questionId, selectedOption, isCorrect, timeSpent } = result.data
+  
+  // 记录答题结果
+  console.log(`问题 ${questionId} 答题结果:`, {
+    选项: selectedOption,
+    正确: isCorrect,
+    用时: timeSpent
+  })
+  
+  // 显示答题反馈
+  if (isCorrect) {
+    message.success(`回答正确！用时 ${timeSpent}ms`)
+  }
+  else {
+    message.error(`回答错误，正确答案是其他选项`)
   }
 }
 

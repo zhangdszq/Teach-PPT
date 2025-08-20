@@ -149,7 +149,7 @@ const selectedTemplate = ref('template_1')
 const loading = ref(false)
 const outlineCreating = ref(false)
 const outlineRef = ref<HTMLElement>()
-const inputRef = ref<InstanceType<typeof Input>>()
+const inputRef = ref<InstanceType<typeof TextArea>>()
 const step = ref<'setup' | 'outline' | 'template'>('setup')
 const model = ref('GLM-4-Flash')
 const styleSelectVisible = ref(false)
@@ -185,6 +185,8 @@ const handleStyleSelect = (selectedStyle: any) => {
   // 直接开始生成PPT
   createPPT()
 }
+
+
 
 const createOutline = async () => {
   if (isSubmitDisabled.value) {
@@ -231,6 +233,49 @@ const createOutline = async () => {
     })
   }
   readStream()
+}
+
+// 创建互动模板幻灯片
+const createInteractiveSlide = (aiData: any) => {
+  try {
+    console.log('🎮 开始创建互动模板幻灯片:', aiData)
+    
+    // 创建一个iframe类型的幻灯片
+    const slideId = nanoid(10)
+    
+    // 创建互动幻灯片
+    const interactiveSlide = {
+      id: slideId,
+      type: 'iframe' as const,
+      elements: [],
+      background: { type: 'solid' as const, color: '#ffffff' },
+      iframeSrc: aiData.templateUrl || '/interactive-quiz.html',
+      isInteractive: true,
+      aiData: aiData.aiData || aiData, // 保存aiData字段
+      templateData: aiData.templateData // 保存templateData字段
+    }
+    
+    console.log('📊 互动幻灯片数据结构:', {
+      id: interactiveSlide.id,
+      hasTemplateData: !!interactiveSlide.templateData,
+      hasAiData: !!interactiveSlide.aiData,
+      templateUrl: interactiveSlide.iframeSrc
+    })
+    
+    // 添加到幻灯片集合
+    const currentSlides = slideStore.slides
+    if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+      slideStore.setSlides([interactiveSlide])
+    } else {
+      slideStore.addSlide(interactiveSlide)
+    }
+    
+    console.log(`✅ 成功创建互动幻灯片，ID: ${slideId}`)
+    console.log(`📊 当前幻灯片总数: ${slideStore.slides.length}`)
+    
+  } catch (error) {
+    console.error('❌ 创建互动幻灯片失败:', error)
+  }
 }
 
 // 默认方式创建幻灯片的辅助函数
@@ -331,6 +376,13 @@ const createPPT = async () => {
           
           if (aiData && typeof aiData === 'object') {
             console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
+            
+            // 检查是否为互动模板
+            if (aiData.isInteractive) {
+              console.log('🎮 检测到互动模板数据，开始创建互动页面:', aiData)
+              await createInteractiveSlide(aiData)
+              continue
+            }
             
             // 创建一页空白PPT
             const blankSlide = createBlankSlide()

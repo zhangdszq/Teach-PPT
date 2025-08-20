@@ -1,16 +1,13 @@
-import { ref } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 import type { PPTImageElement } from '@/types/slides'
-import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import message from '@/utils/message'
 import useAIPPT from '@/hooks/useAIPPT'
 
+/**
+ * 模板图片处理的便捷方法
+ * 这些方法提供了对 useAIPPT 功能的简化接口
+ */
 export default () => {
-  const slidesStore = useSlidesStore()
-  const { addHistorySnapshot } = useHistorySnapshot()
-  
-  // 使用useAIPPT中的图片生成队列功能
   const {
     isGeneratingImages,
     imageGenerationProgress,
@@ -18,28 +15,21 @@ export default () => {
     processedImageCount,
     addToImageQueue,
     startImageGeneration,
-    collectAndQueueImages
+    collectAndQueueImages,
   } = useAIPPT()
 
-  // 为了保持向后兼容，保留原有的ref名称但指向新的状态
-  const isProcessing = isGeneratingImages
-  const processedCount = processedImageCount
-  const totalCount = totalImageCount
-
   /**
-   * 处理当前幻灯片中具有alt属性的图片元素（主要方法）
+   * 处理当前幻灯片中具有alt属性的图片元素（便捷方法）
    */
   const processTemplateImages = async (slideIndex?: number) => {
     try {
-      if (isProcessing.value) {
+      if (isGeneratingImages.value) {
         message.warning('正在处理图片，请稍候...')
         return
       }
 
-      const { slideIndex: currentSlideIndex } = storeToRefs(slidesStore)
-      const targetSlideIndex = slideIndex !== undefined ? slideIndex : currentSlideIndex.value
-
-      console.log(`🎯 processTemplateImages: 目标幻灯片索引 ${targetSlideIndex}，传入参数 ${slideIndex}，当前索引 ${currentSlideIndex.value}`)
+      const slidesStore = useSlidesStore()
+      const targetSlideIndex = slideIndex !== undefined ? slideIndex : slidesStore.slideIndex
 
       if (targetSlideIndex < 0 || targetSlideIndex >= slidesStore.slides.length) {
         console.error(`❌ 幻灯片索引无效: ${targetSlideIndex}，总数: ${slidesStore.slides.length}`)
@@ -48,7 +38,6 @@ export default () => {
       }
 
       const slide = slidesStore.slides[targetSlideIndex]
-      console.log('============================================')
       console.log(`📄 处理幻灯片: 索引 ${targetSlideIndex}, ID ${slide.id}, 元素数量 ${slide.elements.length}`)
       
       // 收集当前幻灯片中需要AI生成图片的元素并添加到队列
@@ -58,9 +47,6 @@ export default () => {
           console.log(`✅ 添加图片到队列: 元素${index} ID=${element.id}, alt="${element.alt}", slideId=${slide.id}`)
           addToImageQueue(slide.id, element.id, element.alt.trim(), element as PPTImageElement)
           imageCount++
-        }
-        else if (element.type === 'image') {
-          console.log(`⏭️ 跳过图片元素: 元素${index} ID=${element.id}, alt="${element.alt || 'undefined'}"`)
         }
       })
 
@@ -73,11 +59,6 @@ export default () => {
       console.log(`🚀 开始处理 ${imageCount} 个图片元素`)
       // 启动图片生成队列处理
       await startImageGeneration()
-      
-      // 添加历史快照
-      if (processedCount.value > 0) {
-        addHistorySnapshot()
-      }
     }
     catch (error) {
       console.error('处理模板图片时发生错误:', error)
@@ -86,37 +67,33 @@ export default () => {
   }
 
   /**
-   * 处理所有幻灯片中的图片元素
+   * 处理所有幻灯片中的图片元素（便捷方法）
    */
   const processAllTemplateImages = async () => {
-    if (isProcessing.value) {
+    if (isGeneratingImages.value) {
       message.warning('正在处理图片，请稍候...')
       return
     }
 
+    const slidesStore = useSlidesStore()
     // 使用collectAndQueueImages收集所有幻灯片中需要AI生成图片的元素
     collectAndQueueImages(slidesStore.slides)
 
-    if (totalCount.value === 0) {
+    if (totalImageCount.value === 0) {
       message.info('未找到需要生成图片的元素')
       return
     }
 
     // 启动图片生成队列处理
     await startImageGeneration()
-    
-    // 添加历史快照
-    if (processedCount.value > 0) {
-      addHistorySnapshot()
-    }
   }
 
   /**
-   * 检查当前幻灯片是否有需要处理的图片
+   * 检查当前幻灯片是否有需要处理的图片（便捷方法）
    */
   const hasTemplateImages = (slideIndex?: number): boolean => {
-    const { slideIndex: currentSlideIndex } = storeToRefs(slidesStore)
-    const targetSlideIndex = slideIndex !== undefined ? slideIndex : currentSlideIndex.value
+    const slidesStore = useSlidesStore()
+    const targetSlideIndex = slideIndex !== undefined ? slideIndex : slidesStore.slideIndex
     
     if (targetSlideIndex < 0 || targetSlideIndex >= slidesStore.slides.length) {
       return false
@@ -132,11 +109,11 @@ export default () => {
   }
 
   /**
-   * 获取当前幻灯片需要处理的图片数量
+   * 获取当前幻灯片需要处理的图片数量（便捷方法）
    */
   const getTemplateImageCount = (slideIndex?: number): number => {
-    const { slideIndex: currentSlideIndex } = storeToRefs(slidesStore)
-    const targetSlideIndex = slideIndex !== undefined ? slideIndex : currentSlideIndex.value
+    const slidesStore = useSlidesStore()
+    const targetSlideIndex = slideIndex !== undefined ? slideIndex : slidesStore.slideIndex
     
     if (targetSlideIndex < 0 || targetSlideIndex >= slidesStore.slides.length) {
       return 0
@@ -156,9 +133,10 @@ export default () => {
   }
 
   /**
-   * 检查所有幻灯片是否有需要处理的图片
+   * 检查所有幻灯片是否有需要处理的图片（便捷方法）
    */
   const hasAllTemplateImages = (): boolean => {
+    const slidesStore = useSlidesStore()
     return slidesStore.slides.some(slide =>
       slide.elements.some(element =>
         element.type === 'image' && 
@@ -170,9 +148,10 @@ export default () => {
   }
 
   /**
-   * 获取所有幻灯片需要处理的图片数量
+   * 获取所有幻灯片需要处理的图片数量（便捷方法）
    */
   const getAllTemplateImageCount = (): number => {
+    const slidesStore = useSlidesStore()
     let count = 0
     slidesStore.slides.forEach(slide => {
       slide.elements.forEach(element => {
@@ -188,16 +167,21 @@ export default () => {
   }
 
   return {
-    isProcessing,
-    processedCount,
-    totalCount,
-    processTemplateImages, // 默认处理当前幻灯片
-    processAllTemplateImages, // 处理所有幻灯片的方法
-    hasTemplateImages, // 检查当前幻灯片
-    getTemplateImageCount, // 获取当前幻灯片图片数量
-    hasAllTemplateImages, // 检查所有幻灯片
-    getAllTemplateImageCount, // 获取所有幻灯片图片数量
-    // 新增：图片生成进度相关
+    // 图片生成状态
+    isGeneratingImages,
     imageGenerationProgress,
+    totalImageCount,
+    processedImageCount,
+    // 便捷方法
+    processTemplateImages,
+    processAllTemplateImages,
+    hasTemplateImages,
+    getTemplateImageCount,
+    hasAllTemplateImages,
+    getAllTemplateImageCount,
+    // 为了保持向后兼容，添加别名
+    isProcessing: isGeneratingImages,
+    processedCount: processedImageCount,
+    totalCount: totalImageCount,
   }
 }
