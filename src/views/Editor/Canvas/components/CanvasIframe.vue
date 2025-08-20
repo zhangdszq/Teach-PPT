@@ -156,6 +156,64 @@ const toggleInteractiveMode = () => {
   message.success(props.visible ? '已退出互动模式' : '已切换到互动模式')
 }
 
+// 监听幻灯片切换，确保互动模板之间切换时重新发送数据
+watch(
+  () => slideIndex.value,
+  (newIndex, oldIndex) => {
+    if (newIndex !== oldIndex) {
+      const currentSlide = slides.value[newIndex]
+      const oldSlide = slides.value[oldIndex]
+      
+      // 如果新幻灯片是互动模板且与旧幻灯片不同
+      if (currentSlide?.type === 'iframe' && currentSlide.id !== oldSlide?.id) {
+        console.log('🔄 检测到互动模板切换，准备重新发送数据')
+        console.log('📊 切换详情:', {
+          从: oldSlide?.id,
+          到: currentSlide.id,
+          新幻灯片类型: currentSlide.type,
+          有templateData: !!currentSlide.templateData,
+          iframe可见: props.visible
+        })
+        
+        // 延迟发送，确保iframe已经更新
+        setTimeout(() => {
+          if (currentSlide.templateData && props.visible) {
+            console.log('✅ 重新发送互动模板数据到iframe:', currentSlide.templateData)
+            sendMessageToIframe({
+              type: 'initData',
+              data: currentSlide.templateData
+            })
+          } else {
+            console.warn('❌ 无法发送数据:', {
+              有templateData: !!currentSlide.templateData,
+              iframe可见: props.visible
+            })
+          }
+        }, 300) // 增加延迟确保iframe完全加载
+      }
+    }
+  }
+)
+
+// 监听当前幻灯片的templateData变化
+watch(
+  () => {
+    const currentSlide = slides.value[slideIndex.value]
+    return currentSlide?.templateData
+  },
+  (newTemplateData) => {
+    const currentSlide = slides.value[slideIndex.value]
+    if (currentSlide?.type === 'iframe' && newTemplateData && props.visible) {
+      console.log('📊 检测到templateData变化，重新发送数据')
+      sendMessageToIframe({
+        type: 'initData',
+        data: newTemplateData
+      })
+    }
+  },
+  { deep: true }
+)
+
 onMounted(() => {
   window.addEventListener('message', handleIframeMessage)
 })
