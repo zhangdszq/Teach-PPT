@@ -100,7 +100,6 @@ onMounted(() => {
     const trimmedLine = line.trim()
     
     if (!trimmedLine) {
-      console.log(`⚪ 第${i+1}行为空行，跳过`)
       continue
     }
 

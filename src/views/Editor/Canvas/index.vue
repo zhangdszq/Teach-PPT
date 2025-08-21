@@ -145,6 +145,7 @@ import useScaleCanvas from '@/hooks/useScaleCanvas'
 import useScreening from '@/hooks/useScreening'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useCreateElement from '@/hooks/useCreateElement'
+import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
 
 // Components
 import EditableElement from './EditableElement.vue'
@@ -211,6 +212,14 @@ const openAIImageDialog = () => {
 // 使用组合式函数
 const { isInteractiveTemplate, handleSlideChange } = useSlideInteractiveStates()
 useAIDataProcessor()
+
+// AI批量生成图片功能
+const {
+  processTemplateImages,
+  hasTemplateImages,
+  getTemplateImageCount,
+  isProcessing: isGeneratingImages
+} = useTemplateAIImageMethods()
 
 // 监听幻灯片切换
 watch(() => slideIndex.value, (newIndex, oldIndex) => {
@@ -346,7 +355,7 @@ const insertCustomShape = (data: CreateCustomShapeData) => {
 
 // 右键菜单
 const contextmenus = (): ContextmenuItem[] => {
-  const baseMenus = [
+  const baseMenus: ContextmenuItem[] = [
     { text: '粘贴', subText: 'Ctrl + V', handler: pasteElement },
     { text: '全选', subText: 'Ctrl + A', handler: selectAllElements },
     { text: '标尺', subText: showRuler.value ? '√' : '', handler: toggleRuler },
@@ -380,6 +389,22 @@ const contextmenus = (): ContextmenuItem[] => {
     { text: '自动匹配模板', subText: '', handler: () => templateManagerRef.value?.matchTemplate() },
     { text: 'AI 生成教学步骤', subText: '', handler: () => aiManagerRef.value?.generateTeachingSteps() }
   )
+
+  // AI批量生成图片菜单
+  const currentSlideImageCount = getTemplateImageCount()
+  if (hasTemplateImages()) {
+    baseMenus.push({ divider: true })
+    baseMenus.push({
+      text: `AI批量生成图片 (${currentSlideImageCount}个)`,
+      subText: isGeneratingImages.value ? '生成中...' : '',
+      handler: async () => {
+        if (!isGeneratingImages.value) {
+          await processTemplateImages()
+        }
+      },
+      disable: isGeneratingImages.value
+    })
+  }
 
   // iframe 相关菜单
   baseMenus.push(isInteractiveTemplate.value ?

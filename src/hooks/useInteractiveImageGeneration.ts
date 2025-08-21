@@ -63,13 +63,18 @@ export default () => {
       console.log(`🚀 开始处理 ${imagesToGenerate.length} 个互动图片`)
       message.success(`开始生成 ${imagesToGenerate.length} 个互动图片，请稍候...`, { duration: 3 })
 
+      // 获取图片配置
+      const imageConfig = slide.aiData?.interactiveData?.imageConfig || slide.templateData?.imageConfig
+      
+      console.log('🖼️ 使用图片配置:', imageConfig)
+
       // 并发处理图片生成
       const promises = imagesToGenerate.map(async (imageInfo, index) => {
         try {
           console.log(`🎨 生成第 ${index + 1} 个图片:`, imageInfo)
           
-          // 调用 AI 生成图片
-          const imageUrl = await generateImageFromPrompt(imageInfo.prompt)
+          // 调用 AI 生成图片，使用配置的宽高
+          const imageUrl = await generateImageFromPrompt(imageInfo.prompt, imageConfig)
           
           if (imageUrl) {
             // 更新 templateData 中的 imgURL
@@ -181,12 +186,15 @@ export default () => {
   /**
    * 调用 AI 生成图片
    */
-  const generateImageFromPrompt = async (prompt: string): Promise<string | null> => {
+  const generateImageFromPrompt = async (prompt: string, imageConfig?: { width?: number; height?: number }): Promise<string | null> => {
+    const width = imageConfig?.width || 800
+    const height = imageConfig?.height || 600
+    
     const result = await aiImageService.generateImage({
       prompt,
       model: 'jimeng',
-      width: 800,
-      height: 600
+      width,
+      height
     })
     
     return result.success ? result.imageUrl || null : null

@@ -251,7 +251,14 @@ const createInteractiveSlide = (aiData: any) => {
       background: { type: 'solid' as const, color: '#ffffff' },
       iframeSrc: aiData.templateUrl || '/interactive-quiz.html',
       isInteractive: true,
-      aiData: aiData.aiData || aiData, // 保存aiData字段
+      aiData: {
+        ...(aiData.aiData || aiData),
+        interactiveData: {
+          imageConfig: aiData.imageConfig,
+          iframeConfig: aiData.iframeConfig,
+          interactionConfig: aiData.interactionConfig
+        }
+      }, // 保存aiData字段和互动配置
       templateData: aiData.templateData // 保存templateData字段
     }
     

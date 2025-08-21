@@ -87,6 +87,7 @@ const openContentDataDialog = () => {
     ...(slide.templateData && { templateData: slide.templateData }),
     ...(slide.isInteractive !== undefined && { isInteractive: slide.isInteractive }),
     ...(slide.iframeSrc && { iframeSrc: slide.iframeSrc })
+    // 注意：故意不包含 elements 字段
   }
   
   currentSlideData.value = slideData
@@ -122,11 +123,10 @@ const regenerateAIData = async () => {
         aiData: data.data
       })
       
-      // 重新构建完整的幻灯片数据
+      // 重新构建完整的幻灯片数据（不包含 elements 字段）
       const slide = slides.value[slideIndex.value]
       const slideData = {
         id: slide.id,
-        elements: slide.elements,
         background: slide.background,
         animations: slide.animations,
         turningMode: slide.turningMode,
@@ -135,6 +135,7 @@ const regenerateAIData = async () => {
         ...(slide.templateData && { templateData: slide.templateData }),
         ...(slide.isInteractive !== undefined && { isInteractive: slide.isInteractive }),
         ...(slide.iframeSrc && { iframeSrc: slide.iframeSrc })
+        // 注意：故意不包含 elements 字段
       }
       currentSlideData.value = slideData
       contentDataDialogVisible.value = true
