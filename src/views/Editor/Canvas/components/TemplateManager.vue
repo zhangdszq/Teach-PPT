@@ -17,12 +17,70 @@
     <!-- 查看内容数据对话框 -->
     <Modal
       v-model:visible="contentDataDialogVisible" 
-      :width="800"
-      title="查看内容数据"
+      :width="900"
+      title="编辑内容数据"
     >
       <div class="content-data-dialog">
         <div class="data-content">
-          <pre>{{ formattedContentData }}</pre>
+          <div class="json-editor-container">
+            <div class="editor-toolbar">
+              <div class="toolbar-left">
+                <span class="text-sm text-gray-600">JSON 数据编辑器</span>
+              </div>
+              <div class="toolbar-right">
+                <button 
+                  @click="formatJSON" 
+                  class="format-btn"
+                  title="格式化JSON"
+                >
+                  格式化
+                </button>
+                <button 
+                  @click="validateJSON" 
+                  class="validate-btn"
+                  title="验证JSON"
+                >
+                  验证
+                </button>
+              </div>
+            </div>
+            <div class="editor-with-lines">
+              <div class="line-numbers" ref="lineNumbersRef">
+                <div 
+                  v-for="lineNumber in lineCount" 
+                  :key="lineNumber" 
+                  class="line-number"
+                >
+                  {{ lineNumber }}
+                </div>
+              </div>
+              <textarea
+                v-model="editableContentData"
+                class="json-editor"
+                placeholder="请输入有效的JSON数据..."
+                @input="onJSONInput"
+                @scroll="syncScroll"
+                ref="textareaRef"
+              ></textarea>
+            </div>
+          </div>
+          
+          <div v-if="jsonError" class="json-error">
+            <span class="error-icon">⚠️</span>
+            <span class="error-text">{{ jsonError }}</span>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button @click="contentDataDialogVisible = false" class="cancel-btn">
+            取消
+          </button>
+          <button 
+            @click="saveContentData" 
+            class="save-btn"
+            :disabled="!!jsonError || !hasChanges"
+          >
+            保存更改
+          </button>
         </div>
       </div>
     </Modal>
@@ -51,12 +109,25 @@ const saveTemplateDialogVisible = ref(false)
 const manualTemplateSelectVisible = ref(false)
 const contentDataDialogVisible = ref(false)
 const currentSlideData = ref<any>(null)
+const editableContentData = ref('')
+const originalContentData = ref('')
+const jsonError = ref('')
+const textareaRef = ref()
+const lineNumbersRef = ref()
 
 const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImageMethods()
 
 const formattedContentData = computed(() => {
   if (!currentSlideData.value) return '暂无数据'
   return JSON.stringify(currentSlideData.value, null, 2)
+})
+
+const hasChanges = computed(() => {
+  return editableContentData.value !== originalContentData.value
+})
+
+const lineCount = computed(() => {
+  return editableContentData.value.split('\n').length
 })
 
 // 打开保存模板对话框
@@ -91,7 +162,81 @@ const openContentDataDialog = () => {
   }
   
   currentSlideData.value = slideData
+  const jsonString = JSON.stringify(slideData, null, 2)
+  editableContentData.value = jsonString
+  originalContentData.value = jsonString
+  jsonError.value = ''
   contentDataDialogVisible.value = true
+}
+
+// JSON输入处理
+const onJSONInput = () => {
+  validateJSON()
+}
+
+// 同步滚动
+const syncScroll = () => {
+  if (textareaRef.value && lineNumbersRef.value) {
+    lineNumbersRef.value.scrollTop = textareaRef.value.scrollTop
+  }
+}
+
+// 验证JSON
+const validateJSON = () => {
+  try {
+    JSON.parse(editableContentData.value)
+    jsonError.value = ''
+    return true
+  } catch (error: any) {
+    jsonError.value = `JSON格式错误: ${error.message}`
+    return false
+  }
+}
+
+// 格式化JSON
+const formatJSON = () => {
+  if (validateJSON()) {
+    try {
+      const parsed = JSON.parse(editableContentData.value)
+      editableContentData.value = JSON.stringify(parsed, null, 2)
+      message.success('JSON格式化成功')
+    } catch (error) {
+      message.error('JSON格式化失败')
+    }
+  }
+}
+
+// 保存内容数据
+const saveContentData = () => {
+  if (!validateJSON()) {
+    message.error('请修复JSON格式错误后再保存')
+    return
+  }
+  
+  try {
+    const parsedData = JSON.parse(editableContentData.value)
+    
+    // 更新当前幻灯片数据
+    slidesStore.updateSlide({
+      background: parsedData.background,
+      animations: parsedData.animations,
+      turningMode: parsedData.turningMode,
+      remark: parsedData.remark,
+      aiData: parsedData.aiData,
+      templateData: parsedData.templateData,
+      isInteractive: parsedData.isInteractive,
+      iframeSrc: parsedData.iframeSrc
+    })
+    
+    // 更新当前数据引用
+    currentSlideData.value = parsedData
+    originalContentData.value = editableContentData.value
+    
+    message.success('内容数据保存成功')
+    contentDataDialogVisible.value = false
+  } catch (error: any) {
+    message.error(`保存失败: ${error.message}`)
+  }
 }
 
 // 重新生成AI数据
@@ -292,21 +437,167 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-.content-data-dialog .data-content {
-  max-height: 500px;
-  overflow: auto;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  padding: 16px;
-}
-
-.content-data-dialog .data-content pre {
-  margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #333;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+.content-data-dialog {
+  .data-content {
+    margin-bottom: 16px;
+  }
+  
+  .json-editor-container {
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+  
+  .editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e1e5e9;
+    
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+    }
+    
+    .toolbar-right {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .format-btn, .validate-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      border: 1px solid #d0d7de;
+      border-radius: 4px;
+      background: #fff;
+      color: #656d76;
+      cursor: pointer;
+      transition: all 0.2s;
+      
+      &:hover {
+        background: #f3f4f6;
+        border-color: #8c959f;
+      }
+    }
+  }
+  
+  .editor-with-lines {
+    display: flex;
+    position: relative;
+    height: 400px;
+  }
+  
+  .line-numbers {
+    background: #f5f5f5;
+    border-right: 1px solid #e1e5e9;
+    color: #8c959f;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 12px 8px 12px 12px;
+    text-align: right;
+    user-select: none;
+    min-width: 40px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  
+  .line-number {
+    height: 19.5px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  
+  .json-editor {
+    flex: 1;
+    height: 100%;
+    padding: 12px;
+    border: none;
+    outline: none;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #24292f;
+    background: #fff;
+    resize: none;
+    
+    &::placeholder {
+      color: #8c959f;
+    }
+  }
+  
+  .json-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    margin-top: 8px;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    color: #dc2626;
+    font-size: 12px;
+    
+    .error-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    
+    .error-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+  }
+  
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid #e1e5e9;
+    
+    .cancel-btn, .save-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid;
+    }
+    
+    .cancel-btn {
+      background: #fff;
+      color: #656d76;
+      border-color: #d0d7de;
+      
+      &:hover {
+        background: #f3f4f6;
+        border-color: #8c959f;
+      }
+    }
+    
+    .save-btn {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+      
+      &:hover:not(:disabled) {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+      }
+      
+      &:disabled {
+        background: #9ca3af;
+        border-color: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+    }
+  }
 }
 </style>
