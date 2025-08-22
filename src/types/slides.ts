@@ -786,6 +786,7 @@ export interface Slide {
   templateData?: any
   iframeSrc?: string
   isInteractive?: boolean
+  imageConfig?: any
 }
 
 /**

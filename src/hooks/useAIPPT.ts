@@ -303,7 +303,8 @@ export default () => {
           const minutes = Math.floor(remainingTime / 60)
           const seconds = remainingTime % 60
           timeStr = ` (预计剩余 ${minutes}分${seconds}秒)`
-        } else if (remainingTime > 0) {
+        }
+        else if (remainingTime > 0) {
           timeStr = ` (预计剩余 ${remainingTime}秒)`
         }
         
@@ -467,13 +468,56 @@ export default () => {
         console.log(`🔄 更新元素 ${targetElementId} 的图片URL: ${imageUrl}`)
         console.log(`🎯 目标幻灯片ID: ${targetSlideId}`)
         
-        // 验证目标幻灯片和元素是否存在
+        // 验证目标幻灯片是否存在
         const targetSlide = slidesStore.slides.find(slide => slide.id === targetSlideId)
         if (!targetSlide) {
           console.error(`❌ 未找到目标幻灯片: ${targetSlideId}`)
           return false
         }
         
+        // 检查是否是互动模版图片（通过元素ID判断）
+        if (targetElementId.startsWith('interactive-')) {
+          console.log(`🎭 处理互动模版图片: ${targetElementId}`)
+          
+          // 从元素的 templateDataPath 获取路径信息
+          const templateDataPath = (element as any).templateDataPath
+          if (!templateDataPath) {
+            console.error(`❌ 互动模版图片缺少 templateDataPath: ${targetElementId}`)
+            return false
+          }
+          
+          // 更新 templateData 中的图片URL
+          const updateTemplateData = (obj: any, path: string[], url: string): boolean => {
+            if (path.length === 1) {
+              if (obj && typeof obj === 'object' && path[0] in obj) {
+                obj[path[0]] = url
+                return true
+              }
+              return false
+            }
+            
+            const [head, ...tail] = path
+            if (obj && typeof obj === 'object' && head in obj) {
+              return updateTemplateData(obj[head], tail, url)
+            }
+            return false
+          }
+          
+          const pathArray = templateDataPath.split('.')
+          const success = updateTemplateData(targetSlide.templateData, pathArray, imageUrl)
+          
+          if (success) {
+            console.log(`✅ 互动模版图片 ${targetElementId} 更新成功，路径: ${templateDataPath}`)
+            // 直接修改 templateData 并触发响应式更新
+            targetSlide.templateData = { ...targetSlide.templateData }
+            return true
+          }
+          
+          console.error(`❌ 更新互动模版图片失败，路径不存在: ${templateDataPath}`)
+          return false
+        }
+        
+        // 处理普通图片元素
         const targetElement = targetSlide.elements.find(el => el.id === targetElementId)
         if (!targetElement) {
           console.error(`❌ 在幻灯片 ${targetSlideId} 中未找到元素: ${targetElementId}`)
@@ -585,8 +629,8 @@ export default () => {
             hasValidAlt,
             alt: imgElement.alt || '(无alt属性)',
             reason: !imgElement.alt ? '缺少alt属性' : 
-                   !imgElement.alt.trim() ? 'alt属性为空' : 
-                   imgElement.alt === 'REMOVE_THIS_ELEMENT' ? '特殊标记元素' : '其他'
+              !imgElement.alt.trim() ? 'alt属性为空' : 
+                imgElement.alt === 'REMOVE_THIS_ELEMENT' ? '特殊标记元素' : '其他'
           })
         }
       })
@@ -623,7 +667,8 @@ export default () => {
     if (!isGeneratingImages.value) {
       console.log(`🚀 立即开始处理 ${imageGenerationQueue.value.length} 个图片生成任务`)
       await processImageQueue(2) // 每次并发处理2个图片
-    } else {
+    }
+    else {
       console.log('⏳ 检测到正在生成图片，新任务将在当前任务完成后处理')
     }
   }

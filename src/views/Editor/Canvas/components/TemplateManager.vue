@@ -93,6 +93,7 @@ import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
 import { useSlidesStore, useMainStore } from '@/store'
 import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
+import useInteractiveImageGeneration from '@/hooks/useInteractiveImageGeneration'
 import api from '@/services'
 import message from '@/utils/message'
 import SaveTemplateDialog from '../../SaveTemplateDialog.vue'
@@ -116,6 +117,7 @@ const textareaRef = ref()
 const lineNumbersRef = ref()
 
 const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImageMethods()
+const { hasInteractiveImages, processInteractiveImages } = useInteractiveImageGeneration()
 
 const formattedContentData = computed(() => {
   if (!currentSlideData.value) return '暂无数据'
@@ -187,7 +189,8 @@ const validateJSON = () => {
     JSON.parse(editableContentData.value)
     jsonError.value = ''
     return true
-  } catch (error: any) {
+  } 
+  catch (error: any) {
     jsonError.value = `JSON格式错误: ${error.message}`
     return false
   }
@@ -200,7 +203,8 @@ const formatJSON = () => {
       const parsed = JSON.parse(editableContentData.value)
       editableContentData.value = JSON.stringify(parsed, null, 2)
       message.success('JSON格式化成功')
-    } catch (error) {
+    } 
+    catch (error) {
       message.error('JSON格式化失败')
     }
   }
@@ -234,7 +238,8 @@ const saveContentData = () => {
     
     message.success('内容数据保存成功')
     contentDataDialogVisible.value = false
-  } catch (error: any) {
+  } 
+  catch (error: any) {
     message.error(`保存失败: ${error.message}`)
   }
 }
@@ -390,7 +395,10 @@ const handleManualTemplateSelect = async (template: any) => {
           slidesStore.updateSlide({
             elements: processedElements,
             background: newSlideData.background || slide.background,
-            aiData: slide.aiData
+            aiData: slide.aiData,
+            templateData: newSlideData.templateData,
+            isInteractive: newSlideData.isInteractive,
+            imageConfig: newSlideData.imageConfig
           })
           
           applyFixedViewportSettings(slidesStore, slideSize)
@@ -398,10 +406,44 @@ const handleManualTemplateSelect = async (template: any) => {
           message.success(`成功应用模版：${template.name}`)
           
           nextTick(() => {
+            // 处理普通模版图片
             if (hasTemplateImages()) {
               const imageCount = getTemplateImageCount()
               message.info(`检测到 ${imageCount} 个图片需要AI生成，正在处理...`)
               processTemplateImages(slideIndex.value)
+            }
+            
+            // 处理互动模版图片
+            // 使用完整的后端响应数据来检查互动图片
+            const slideDataForInteractive = {
+              ...newSlideData,
+              id: slideIndex.value.toString(),
+              elements: processedElements
+            }
+            
+            console.log('🔍 当前幻灯片数据结构:', {
+              slideIndex: slideIndex.value,
+              slideId: slideDataForInteractive.id,
+              hasTemplateData: !!slideDataForInteractive.templateData,
+              hasAiData: !!slideDataForInteractive.aiData,
+              isInteractive: slideDataForInteractive.isInteractive,
+              slideKeys: Object.keys(slideDataForInteractive),
+              templateDataKeys: slideDataForInteractive.templateData ? Object.keys(slideDataForInteractive.templateData) : null
+            })
+            
+            console.log('📋 准备调用 hasInteractiveImages，参数详情:', {
+              slideDataForInteractive,
+              isUndefined: slideDataForInteractive === undefined,
+              isNull: slideDataForInteractive === null,
+              type: typeof slideDataForInteractive,
+              hasInteractiveImagesFn: typeof hasInteractiveImages,
+              hasInteractiveImagesExists: !!hasInteractiveImages
+            })
+            
+            if (hasInteractiveImages && hasInteractiveImages(slideDataForInteractive)) {
+              console.log('🎭 检测到互动模版图片，添加到统一队列')
+              // 使用包含完整后端响应数据的 slideDataForInteractive
+              processInteractiveImages(slideIndex.value, slideDataForInteractive)
             }
           })
         }
