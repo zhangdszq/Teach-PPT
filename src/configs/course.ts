@@ -9,4 +9,4 @@ export const courseTypeOptions = [
   '英语语音语调纠正练习',
   '英语课堂互动游戏设计',
   '幼儿英语启蒙认知课',
-];
+]

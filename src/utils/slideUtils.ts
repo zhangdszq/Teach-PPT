@@ -74,19 +74,23 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
             defaultColor: '#555555'
           })
           console.log('✅ 创建副标题组件:', component.id)
-        } else if (component.type === 'word') {
+        }
+        else if (component.type === 'word') {
           const wordElement = createWordElement(component, left, currentTop, columnWidth)
           elements.push(wordElement)
           console.log('✅ 创建单词组件:', wordElement.id)
-        } else if (component.type === 'sentence') {
+        }
+        else if (component.type === 'sentence') {
           const sentenceElement = createSentenceElement(component, left, currentTop, columnWidth)
           elements.push(sentenceElement)
           console.log('✅ 创建句子组件:', sentenceElement.id)
-        } else if (component.type === 'image') {
+        }
+        else if (component.type === 'image') {
           const imageElement = createImageDescriptionElement(component, left, currentTop, columnWidth)
           elements.push(imageElement)
           console.log('✅ 创建图像描述组件:', imageElement.id)
-        } else {
+        }
+        else {
           console.warn('⚠️ 未知组件类型:', component.type)
         }
         
@@ -145,7 +149,8 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
     console.log(`✅ 成功创建幻灯片，包含 ${elements.length} 个元素`)
     return slide
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ 创建幻灯片失败:', error)
     return slide // 返回空白幻灯片
   }
@@ -246,7 +251,8 @@ const applyTemplateStyles = (elements: any[], template: any) => {
           if (element.id.startsWith('title_')) {
             element.defaultColor = styleColors.primary
             element.content = element.content.replace(/#2563eb/g, styleColors.primary)
-          } else if (element.id.startsWith('content_')) {
+          }
+          else if (element.id.startsWith('content_')) {
             element.defaultColor = styleColors.text
             element.content = element.content.replace(/#374151/g, styleColors.text)
           }
@@ -259,7 +265,8 @@ const applyTemplateStyles = (elements: any[], template: any) => {
       adjustElementLayout(elements, template.layoutType)
     }
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ 应用模板样式失败:', error)
   }
 }

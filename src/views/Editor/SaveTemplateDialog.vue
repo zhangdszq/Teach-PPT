@@ -206,28 +206,30 @@ const fetchTemplateTypes = async () => {
     if (result.status === 'success' && result.data && Array.isArray(result.data)) {
       templateTypeOptions.value = result.data
       console.log('✅ 模板类型选项获取成功:', result.data)
-    } else {
+    }
+    else {
       console.warn('⚠️ 模板类型选项获取失败，使用默认选项')
       // 使用默认选项作为备选
       templateTypeOptions.value = [
-        "自我介绍",
-        "学习目标", 
-        "提问环节",
-        "正式学习",
-        "自由讨论",
-        "看图选择"
+        '自我介绍',
+        '学习目标', 
+        '提问环节',
+        '正式学习',
+        '自由讨论',
+        '看图选择'
       ]
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ 获取模板类型选项失败:', error)
     // 使用默认选项作为备选
     templateTypeOptions.value = [
-      "自我介绍",
-      "学习目标",
-      "提问环节", 
-      "正式学习",
-      "自由讨论",
-      "看图选择"
+      '自我介绍',
+      '学习目标',
+      '提问环节', 
+      '正式学习',
+      '自由讨论',
+      '看图选择'
     ]
   }
 }
@@ -315,7 +317,8 @@ const cleanBase64Images = (obj: any): any => {
         // 只有 imageType 为 itemFigure 时才清理图片数据
         if (imageProps.includes(key) && typeof value === 'string' && value.startsWith('data:image') && current.imageType === 'itemFigure') {
           result[key] = '[图片数据已清理]'
-        } else {
+        }
+        else {
           result[key] = recurse(value)
         }
       }
@@ -460,14 +463,17 @@ const handleAIExtract = async () => {
         message.success('图片已成功添加到当前页面！')
       }
       
-    } else {
+    }
+    else {
       message.error(result.message || 'AI特征提取失败，请重试')
     }
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('AI特征提取失败:', error)
     message.error('AI特征提取失败，请检查网络连接后重试')
-  } finally {
+  }
+  finally {
     aiExtracting.value = false
   }
 }
@@ -569,7 +575,8 @@ const captureSlideImage = async (): Promise<string | null> => {
         })
         
         console.log('✅ html2canvas截图成功')
-      } catch (html2canvasError) {
+      }
+      catch (html2canvasError) {
         console.warn('⚠️ html2canvas截图失败:', html2canvasError)
       }
     }
@@ -588,7 +595,8 @@ const captureSlideImage = async (): Promise<string | null> => {
             capturedCanvas = canvas
             console.log(`✅ 使用第${i + 1}个canvas元素`)
             break
-          } catch (canvasError) {
+          }
+          catch (canvasError) {
             console.warn(`⚠️ 第${i + 1}个canvas元素不可访问:`, canvasError)
           }
         }
@@ -609,7 +617,8 @@ const captureSlideImage = async (): Promise<string | null> => {
           })
           console.log('✅ 动态加载html2canvas截图成功')
         }
-      } catch (loadError) {
+      }
+      catch (loadError) {
         console.warn('⚠️ 动态加载html2canvas失败:', loadError)
       }
     }
@@ -638,7 +647,8 @@ const captureSlideImage = async (): Promise<string | null> => {
             console.log('✅ SVG方法截图成功')
           }
         }
-      } catch (svgError) {
+      }
+      catch (svgError) {
         console.warn('⚠️ SVG方法截图失败:', svgError)
       }
     }
@@ -669,7 +679,8 @@ const captureSlideImage = async (): Promise<string | null> => {
     console.error('❌ 所有截图方法都失败了')
     return null
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ 截图过程发生错误:', error)
     return null
   }
@@ -730,7 +741,8 @@ const captureWithSVG = (element: HTMLElement): Promise<string | null> => {
         if (ctx) {
           ctx.drawImage(img, 0, 0)
           resolve(canvas.toDataURL('image/png', 0.8))
-        } else {
+        }
+        else {
           resolve(null)
         }
       }
@@ -738,7 +750,8 @@ const captureWithSVG = (element: HTMLElement): Promise<string | null> => {
       img.src = dataUrl
     })
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('SVG截图失败:', error)
     return Promise.resolve(null)
   }
@@ -758,7 +771,8 @@ const handleSave = async () => {
       message.error('请输入模板名称和选择模板类型')
       return
     }
-  } catch (err) {
+  }
+  catch (err) {
     message.error('请填写所有必填项')
     return
   }
@@ -819,14 +833,17 @@ const handleSave = async () => {
     if (result.status === 'success') {
       message.success(`模板"${templateForm.name}"保存成功！`)
       dialogVisible.value = false
-    } else {
+    }
+    else {
       message.error(result.error_message || '模板保存失败')
     }
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('保存模板失败:', error)
     message.error('模板保存失败，请稍后重试')
-  } finally {
+  }
+  finally {
     saving.value = false
   }
 }

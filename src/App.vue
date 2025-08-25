@@ -68,7 +68,8 @@ onMounted(async () => {
           slidesData.forEach((slide, index) => {
             if (slide.aiData) {
               console.log(`🤖 第 ${index + 1} 页包含 aiData:`, slide.aiData)
-            } else {
+            }
+            else {
               console.log(`⚠️ 第 ${index + 1} 页不包含 aiData 字段`)
             }
           })
@@ -78,17 +79,20 @@ onMounted(async () => {
         if (response.data.title) {
           slidesStore.setTitle(response.data.title)
         }
-      } else {
+      }
+      else {
         console.error('Failed to load PPT:', response)
         // 加载失败时使用默认模板
         slidesData = await api.getFileData('slides')
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Error loading PPT:', error)
       // 加载失败时使用默认模板
       slidesData = await api.getFileData('slides')
     }
-  } else {
+  }
+  else {
     // 没有pptId参数时，加载默认模板
     slidesData = await api.getFileData('slides')
   }

@@ -32,7 +32,8 @@ export const autoFitCanvas = (
     // 容器更宽，以高度为准
     newHeight = containerHeight * 0.8 // 留出 20% 边距
     newWidth = newHeight * slideRatio
-  } else {
+  }
+  else {
     // 容器更高，以宽度为准
     newWidth = containerWidth * 0.8 // 留出 20% 边距
     newHeight = newWidth / slideRatio

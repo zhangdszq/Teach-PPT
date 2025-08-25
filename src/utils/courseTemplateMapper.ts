@@ -196,25 +196,32 @@ export class CourseOutlineParser {
     if (title.includes('字母形状')) {
       pageType = 'letter-shape'
       console.log('✅ 匹配到页面类型: letter-shape (字母形状教学)')
-    } else if (title.includes('字母音')) {
+    }
+    else if (title.includes('字母音')) {
       pageType = 'letter-sound'
       console.log('✅ 匹配到页面类型: letter-sound (字母发音教学)')
-    } else if (title.includes('开头单词')) {
+    }
+    else if (title.includes('开头单词')) {
       pageType = 'letter-words'
       console.log('✅ 匹配到页面类型: letter-words (单词展示)')
-    } else if (title.includes('音辨认')) {
+    }
+    else if (title.includes('音辨认')) {
       pageType = 'sound-recognition'
       console.log('✅ 匹配到页面类型: sound-recognition (发音识别练习)')
-    } else if (title.includes('拼读游戏')) {
+    }
+    else if (title.includes('拼读游戏')) {
       pageType = 'phonics-game'
       console.log('✅ 匹配到页面类型: phonics-game (拼读游戏)')
-    } else if (title.includes('配对游戏')) {
+    }
+    else if (title.includes('配对游戏')) {
       pageType = 'matching-game'
       console.log('✅ 匹配到页面类型: matching-game (配对游戏)')
-    } else if (title.includes('复习游戏')) {
+    }
+    else if (title.includes('复习游戏')) {
       pageType = 'review-game'
       console.log('✅ 匹配到页面类型: review-game (复习游戏)')
-    } else {
+    }
+    else {
       console.log('⚠️ 未匹配到特定类型，使用默认类型: general')
     }
     
@@ -391,7 +398,8 @@ export class PPTGenerator {
         布局类型: template.layout,
         包含元素: template.elements
       })
-    } else {
+    }
+    else {
       console.log('⚠️ 未找到匹配的模板，使用默认模板')
     }
     

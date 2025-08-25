@@ -217,7 +217,8 @@ export const captureElement = async (
         })
         
         console.log('✅ html2canvas截图成功')
-      } catch (html2canvasError) {
+      }
+      catch (html2canvasError) {
         console.warn('⚠️ html2canvas截图失败:', html2canvasError)
       }
     }
@@ -236,7 +237,8 @@ export const captureElement = async (
             capturedCanvas = canvas
             console.log(`✅ 使用第${i + 1}个canvas元素`)
             break
-          } catch (canvasError) {
+          }
+          catch (canvasError) {
             console.warn(`⚠️ 第${i + 1}个canvas元素不可访问:`, canvasError)
           }
         }
@@ -257,7 +259,8 @@ export const captureElement = async (
           })
           console.log('✅ 动态加载html2canvas截图成功')
         }
-      } catch (loadError) {
+      }
+      catch (loadError) {
         console.warn('⚠️ 动态加载html2canvas失败:', loadError)
       }
     }
@@ -274,14 +277,16 @@ export const captureElement = async (
       console.log(`✅ 图片压缩完成: ${originalSize}KB -> ${compressedSize}KB`)
       
       return compressedBase64
-    } else if (capturedCanvas) {
+    }
+    else if (capturedCanvas) {
       console.warn('⚠️ 截图canvas尺寸无效:', capturedCanvas.width, 'x', capturedCanvas.height)
     }
     
     console.error('❌ 所有截图方法都失败了')
     return null
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ 截图过程发生错误:', error)
     return null
   }

@@ -133,7 +133,8 @@ export const useSlidesStore = defineStore('slides', {
       slides.forEach(slide => {
         if (seenIds.has(slide.id)) {
           duplicateIds.add(slide.id)
-        } else {
+        }
+        else {
           seenIds.add(slide.id)
         }
       })
@@ -156,7 +157,8 @@ export const useSlidesStore = defineStore('slides', {
         })
         
         this.slides = processedSlides
-      } else {
+      }
+      else {
         this.slides = slides
       }
     },
@@ -264,15 +266,18 @@ export const useSlidesStore = defineStore('slides', {
         if (matchingIndices.length === 0) {
           console.error('❌ No slide found with ID:', slideId)
           return
-        } else if (matchingIndices.length === 1) {
+        }
+        else if (matchingIndices.length === 1) {
           slideIndex = matchingIndices[0]
-        } else {
+        }
+        else {
           // 存在重复ID，优先选择当前slideIndex对应的幻灯片
           console.warn('⚠️ Multiple slides found with same ID:', slideId, 'indices:', matchingIndices)
           if (matchingIndices.includes(this.slideIndex)) {
             slideIndex = this.slideIndex
             console.log('✅ Using current slideIndex:', slideIndex)
-          } else {
+          }
+          else {
             // 如果当前slideIndex不在匹配列表中，选择最接近当前索引的
             slideIndex = matchingIndices.reduce((closest, current) => 
               Math.abs(current - this.slideIndex) < Math.abs(closest - this.slideIndex) ? current : closest
@@ -280,7 +285,8 @@ export const useSlidesStore = defineStore('slides', {
             console.log('✅ Using closest slideIndex:', slideIndex)
           }
         }
-      } else {
+      }
+      else {
         slideIndex = this.slideIndex
       }
       

@@ -139,7 +139,7 @@ watch(() => props.visible, (newVisible) => {
     
     // 如果发现索引不一致，使用实际的索引
     if (fixedSlideIndex.value !== actualSlideIndex && actualSlideIndex !== -1) {
-      console.warn(`⚠️ 检测到索引不一致: slideIndex=${fixedSlideIndex.value}, 实际索引=${actualSlideIndex}，已修正`);
+      console.warn(`⚠️ 检测到索引不一致: slideIndex=${fixedSlideIndex.value}, 实际索引=${actualSlideIndex}，已修正`)
       fixedSlideIndex.value = actualSlideIndex
     }
     

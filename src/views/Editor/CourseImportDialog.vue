@@ -283,11 +283,13 @@ watch(courseContent, (newContent) => {
   if (newContent.trim()) {
     try {
       parsedCourse.value = CourseOutlineParser.parseMarkdownOutline(newContent)
-    } catch (error) {
+    }
+    catch (error) {
       console.error('解析课程大纲失败:', error)
       parsedCourse.value = null
     }
-  } else {
+  }
+  else {
     parsedCourse.value = null
   }
 }, { immediate: true })
@@ -373,7 +375,8 @@ const handleGenerate = async () => {
     emit('generated', pptData)
     emit('close')
     
-  } catch (error) {
+  }
+  catch (error) {
     console.error('生成PPT失败:', error)
     message.error('生成PPT失败，请检查课程大纲格式')
   }

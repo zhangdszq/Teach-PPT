@@ -35,7 +35,7 @@ const emit = defineEmits<{
 
 const slidesStore = useSlidesStore()
 const { slideIndex, slides } = storeToRefs(slidesStore)
-const { processInteractiveImages, hasInteractiveImages } = useInteractiveImageGeneration()
+const { hasInteractiveImages } = useInteractiveImageGeneration()
 
 const iframeRef = ref<HTMLIFrameElement>()
 
@@ -71,7 +71,7 @@ const sendMessageToIframe = (message: any) => {
 }
 
 // 处理来自iframe的消息
-const handleIframeMessage = async (event: MessageEvent) => {
+const handleIframeMessage = (event: MessageEvent) => {
   console.log('收到来自 iframe 的消息:', event.data)
   
   if (event.data.type === 'iframeReady') {
@@ -88,17 +88,7 @@ const handleIframeMessage = async (event: MessageEvent) => {
       slideKeys: currentSlide ? Object.keys(currentSlide) : []
     })
     
-    // 检查是否需要生成互动图片
-    if (hasInteractiveImages(currentSlide)) {
-      console.log('🎮 检测到需要生成图片，开始处理...')
-      try {
-        await processInteractiveImages(slideIndex.value, currentSlide)
-        console.log('✅ 互动图片生成完成')
-      }
-      catch (error) {
-        console.error('❌ 互动图片生成失败:', error)
-      }
-    }
+    // 注释：互动图片检测已移至 TemplateManager.vue 中统一处理，不再在 iframeReady 时检测
     
     // 直接从幻灯片的templateData字段获取数据
     if (currentSlide?.templateData) {
@@ -157,7 +147,7 @@ const toggleInteractiveMode = () => {
   message.success(props.visible ? '已退出互动模式' : '已切换到互动模式')
 }
 
-// 监听幻灯片切换，确保互动模板之间切换时重新发送数据
+// 监听幻灯片切换，记录切换信息但不主动发送数据
 watch(
   () => slideIndex.value,
   (newIndex, oldIndex) => {
@@ -167,7 +157,7 @@ watch(
       
       // 如果新幻灯片是互动模板且与旧幻灯片不同
       if (currentSlide?.type === 'iframe' && currentSlide.id !== oldSlide?.id) {
-        console.log('🔄 检测到互动模板切换，准备重新发送数据')
+        console.log('🔄 检测到互动模板切换，等待iframe ready后发送数据')
         console.log('📊 切换详情:', {
           从: oldSlide?.id,
           到: currentSlide.id,
@@ -175,22 +165,7 @@ watch(
           有templateData: !!currentSlide.templateData,
           iframe可见: props.visible
         })
-        
-        // 延迟发送，确保iframe已经更新
-        setTimeout(() => {
-          if (currentSlide.templateData && props.visible) {
-            console.log('✅ 重新发送互动模板数据到iframe:', currentSlide.templateData)
-            sendMessageToIframe({
-              type: 'initData',
-              data: currentSlide.templateData
-            })
-          } else {
-            console.warn('❌ 无法发送数据:', {
-              有templateData: !!currentSlide.templateData,
-              iframe可见: props.visible
-            })
-          }
-        }, 300) // 增加延迟确保iframe完全加载
+        // 注释：不再主动发送数据，等待iframe发送ready消息时再发送
       }
     }
   }
@@ -204,12 +179,9 @@ watch(
   },
   (newTemplateData) => {
     const currentSlide = slides.value[slideIndex.value]
-    if (currentSlide?.type === 'iframe' && newTemplateData && props.visible) {
-      console.log('📊 检测到templateData变化，重新发送数据')
-      sendMessageToIframe({
-        type: 'initData',
-        data: newTemplateData
-      })
+    if (currentSlide?.type === 'iframe' && newTemplateData) {
+      console.log('📊 检测到templateData变化，等待iframe ready后发送数据')
+      // 注释：不再主动发送数据，等待iframe发送ready消息时再发送
     }
   },
   { deep: true }

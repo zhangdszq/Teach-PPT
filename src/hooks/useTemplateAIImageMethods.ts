@@ -1,7 +1,7 @@
 import { useSlidesStore } from '@/store'
 import type { PPTImageElement } from '@/types/slides'
 import message from '@/utils/message'
-import useAIPPT from '@/hooks/useAIPPT'
+import useAIImageGenerator from '@/hooks/useAIImageGenerator'
 
 /**
  * 模板图片处理的便捷方法
@@ -13,10 +13,9 @@ export default () => {
     imageGenerationProgress,
     totalImageCount,
     processedImageCount,
-    addToImageQueue,
+    processSlideImages,
     startImageGeneration,
-    collectAndQueueImages,
-  } = useAIPPT()
+  } = useAIImageGenerator()
 
   /**
    * 处理当前幻灯片中具有alt属性的图片元素（便捷方法）
@@ -40,25 +39,20 @@ export default () => {
       const slide = slidesStore.slides[targetSlideIndex]
       console.log(`📄 处理幻灯片: 索引 ${targetSlideIndex}, ID ${slide.id}, 元素数量 ${slide.elements.length}`)
       
-      // 收集当前幻灯片中需要AI生成图片的元素并添加到队列
-      let imageCount = 0
-      slide.elements.forEach((element, index) => {
-        if (element.type === 'image' && element.alt && element.alt.trim() && element.alt !== 'REMOVE_THIS_ELEMENT') {
-          console.log(`✅ 添加图片到队列: 元素${index} ID=${element.id}, alt="${element.alt}", slideId=${slide.id}`)
-          addToImageQueue(slide.id, element.id, element.alt.trim(), element as PPTImageElement)
-          imageCount++
-        }
-      })
+      // 检查当前幻灯片中需要AI生成图片的元素
+      const imageElements = slide.elements.filter(element => 
+        element.type === 'image' && element.alt && element.alt.trim() && element.alt !== 'REMOVE_THIS_ELEMENT'
+      )
 
-      if (imageCount === 0) {
+      if (imageElements.length === 0) {
         console.log(`ℹ️ 幻灯片 ${targetSlideIndex} 未找到需要生成图片的元素`)
         message.info('当前幻灯片未找到需要生成图片的元素')
         return
       }
 
-      console.log(`🚀 开始处理 ${imageCount} 个图片元素`)
-      // 启动图片生成队列处理
-      await startImageGeneration()
+      console.log(`🚀 开始处理 ${imageElements.length} 个图片元素`)
+      // 使用新的图片处理方法
+      await processSlideImages(slide)
     }
     catch (error) {
       console.error('处理模板图片时发生错误:', error)
@@ -76,12 +70,21 @@ export default () => {
     }
 
     const slidesStore = useSlidesStore()
-    // 使用collectAndQueueImages收集所有幻灯片中需要AI生成图片的元素
-    collectAndQueueImages(slidesStore.slides)
+    // 处理所有幻灯片的图片生成
+    const slidesWithImages = slidesStore.slides.filter(slide => 
+      slide.elements.some(element => 
+        element.type === 'image' && element.alt && element.alt.trim() && element.alt !== 'REMOVE_THIS_ELEMENT'
+      )
+    )
 
-    if (totalImageCount.value === 0) {
+    if (slidesWithImages.length === 0) {
       message.info('未找到需要生成图片的元素')
       return
+    }
+
+    // 处理所有包含图片的幻灯片
+    for (const slide of slidesWithImages) {
+      await processSlideImages(slide)
     }
 
     // 启动图片生成队列处理

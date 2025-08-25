@@ -71,7 +71,8 @@ watch(data, () => {
     if (item.lv !== 1) markdown += '\n'
     if (item.title) {
       markdown += `${prefixTitle.repeat(item.lv)} ${item.content}`
-    } else {
+    }
+    else {
       // 对于列表项，根据层级添加相应的缩进
       const indentLevel = Math.max(0, item.lv - 4)
       const indent = '    '.repeat(indentLevel) // 每个层级4个空格

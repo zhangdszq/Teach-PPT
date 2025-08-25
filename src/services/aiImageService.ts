@@ -90,16 +90,17 @@ class AIImageService {
           success: true,
           imageUrl
         }
-      } else {
-        const errorMsg = data.message || data.errorMessage || '图片生成失败'
-        console.error('❌ 图片生成失败:', errorMsg)
-        return {
-          success: false,
-          error: errorMsg
-        }
+      } 
+      const errorMsg = data.message || data.errorMessage || '图片生成失败'
+      console.error('❌ 图片生成失败:', errorMsg)
+      return {
+        success: false,
+        error: errorMsg
       }
       
-    } catch (error) {
+      
+    }
+    catch (error) {
       console.error('💥 图片生成异常:', error)
       return {
         success: false,
@@ -211,7 +212,8 @@ class AIImageService {
             return data.data.image_url
           }
         }
-      } else {
+      }
+      else {
         // 其他AI服务的响应格式
         if (data.success && data.data && data.data.url) {
           return data.data.url
@@ -219,7 +221,8 @@ class AIImageService {
       }
       
       return null
-    } catch (error) {
+    }
+    catch (error) {
       console.error('❌ 提取图片URL失败:', error)
       return null
     }

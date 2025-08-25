@@ -94,6 +94,7 @@ import { nanoid } from 'nanoid'
 import { useSlidesStore, useMainStore } from '@/store'
 import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
 import useInteractiveImageGeneration from '@/hooks/useInteractiveImageGeneration'
+import useAIImageGenerator from '@/hooks/useAIImageGenerator'
 import api from '@/services'
 import message from '@/utils/message'
 import SaveTemplateDialog from '../../SaveTemplateDialog.vue'
@@ -117,7 +118,8 @@ const textareaRef = ref()
 const lineNumbersRef = ref()
 
 const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImageMethods()
-const { hasInteractiveImages, processInteractiveImages } = useInteractiveImageGeneration()
+const { hasInteractiveImages, getInteractiveImageCount } = useInteractiveImageGeneration()
+const { processSlideImages } = useAIImageGenerator()
 
 const formattedContentData = computed(() => {
   if (!currentSlideData.value) return '暂无数据'
@@ -288,6 +290,11 @@ const regenerateAIData = async () => {
         // 注意：故意不包含 elements 字段
       }
       currentSlideData.value = slideData
+      // 更新编辑器内容
+      const jsonString = JSON.stringify(slideData, null, 2)
+      editableContentData.value = jsonString
+      originalContentData.value = jsonString
+      jsonError.value = ''
       contentDataDialogVisible.value = true
       
       message.success('AI数据重新生成成功')
@@ -406,44 +413,48 @@ const handleManualTemplateSelect = async (template: any) => {
           message.success(`成功应用模版：${template.name}`)
           
           nextTick(() => {
-            // 处理普通模版图片
-            if (hasTemplateImages()) {
-              const imageCount = getTemplateImageCount()
-              message.info(`检测到 ${imageCount} 个图片需要AI生成，正在处理...`)
-              processTemplateImages(slideIndex.value)
-            }
-            
-            // 处理互动模版图片
-            // 使用完整的后端响应数据来检查互动图片
-            const slideDataForInteractive = {
+            // 统一处理所有图片（静态图片 + 互动图片）
+            // 使用完整的后端响应数据
+            const slideDataForProcessing = {
               ...newSlideData,
               id: slideIndex.value.toString(),
               elements: processedElements
             }
             
-            console.log('🔍 当前幻灯片数据结构:', {
+            console.log('🔍 准备统一处理幻灯片图片:', {
               slideIndex: slideIndex.value,
-              slideId: slideDataForInteractive.id,
-              hasTemplateData: !!slideDataForInteractive.templateData,
-              hasAiData: !!slideDataForInteractive.aiData,
-              isInteractive: slideDataForInteractive.isInteractive,
-              slideKeys: Object.keys(slideDataForInteractive),
-              templateDataKeys: slideDataForInteractive.templateData ? Object.keys(slideDataForInteractive.templateData) : null
+              slideId: slideDataForProcessing.id,
+              hasElements: !!slideDataForProcessing.elements,
+              elementsCount: slideDataForProcessing.elements?.length || 0,
+              hasTemplateData: !!slideDataForProcessing.templateData,
+              isInteractive: slideDataForProcessing.isInteractive,
+              slideKeys: Object.keys(slideDataForProcessing)
             })
             
-            console.log('📋 准备调用 hasInteractiveImages，参数详情:', {
-              slideDataForInteractive,
-              isUndefined: slideDataForInteractive === undefined,
-              isNull: slideDataForInteractive === null,
-              type: typeof slideDataForInteractive,
-              hasInteractiveImagesFn: typeof hasInteractiveImages,
-              hasInteractiveImagesExists: !!hasInteractiveImages
-            })
+            // 检查是否有需要生成的图片
+            const hasStaticImages = hasTemplateImages()
+            const hasInteractiveImgs = hasInteractiveImages && hasInteractiveImages(slideDataForProcessing)
             
-            if (hasInteractiveImages && hasInteractiveImages(slideDataForInteractive)) {
-              console.log('🎭 检测到互动模版图片，添加到统一队列')
-              // 使用包含完整后端响应数据的 slideDataForInteractive
-              processInteractiveImages(slideIndex.value, slideDataForInteractive)
+            if (hasStaticImages || hasInteractiveImgs) {
+              const staticImageCount = hasStaticImages ? getTemplateImageCount() : 0
+              const interactiveImageCount = hasInteractiveImgs ? getInteractiveImageCount(slideDataForProcessing) : 0
+              const totalImageCount = staticImageCount + interactiveImageCount
+              
+              console.log('📊 图片统计:', {
+                staticImageCount,
+                interactiveImageCount,
+                totalImageCount
+              })
+              
+              if (totalImageCount > 0) {
+                message.info(`检测到 ${totalImageCount} 个图片需要AI生成（静态: ${staticImageCount}，互动: ${interactiveImageCount}），正在按统一顺序处理...`)
+                
+                // 使用统一的图片处理函数
+                processSlideImages(slideDataForProcessing)
+              }
+            }
+            else {
+              console.log('ℹ️ 当前幻灯片没有需要生成的图片')
             }
           })
         }

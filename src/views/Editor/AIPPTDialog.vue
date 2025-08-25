@@ -122,6 +122,8 @@ import { nanoid } from 'nanoid'
 import { courseTypeOptions as courseOptionsData } from '@/configs/course'
 import api from '@/services'
 import useAIPPT from '@/hooks/useAIPPT'
+import useAIImageGenerator from '@/hooks/useAIImageGenerator'
+import useInteractiveImageGeneration from '@/hooks/useInteractiveImageGeneration'
 import type { AIPPTSlide } from '@/types/AIPPT'
 import type { Slide, SlideTheme } from '@/types/slides'
 import message from '@/utils/message'
@@ -137,7 +139,8 @@ import StyleSelectDialog from './StyleSelectDialog.vue'
 const mainStore = useMainStore()
 const slideStore = useSlidesStore()
 const { templates } = storeToRefs(slideStore)
-const { AIPPT, presetImgPool, getMdContent, collectAndQueueImages, startImageGeneration, totalImageCount, processedImageCount, imageGenerationQueue } = useAIPPT()
+const { AIPPT, presetImgPool, getMdContent } = useAIPPT()
+const { processSlideImages, startImageGeneration, totalImageCount, processedImageCount, imageGenerationQueue } = useAIImageGenerator()
 
 const grade = ref('1年级')
 const style = ref('儿童友好')
@@ -273,14 +276,23 @@ const createInteractiveSlide = (aiData: any) => {
     const currentSlides = slideStore.slides
     if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
       slideStore.setSlides([interactiveSlide])
-    } else {
+    }
+    else {
       slideStore.addSlide(interactiveSlide)
     }
     
     console.log(`✅ 成功创建互动幻灯片，ID: ${slideId}`)
     console.log(`📊 当前幻灯片总数: ${slideStore.slides.length}`)
     
-  } catch (error) {
+    // 检测并添加互动图片到队列（但不立即生成）
+    if (interactiveSlide.templateData) {
+      console.log('🎯 检测互动幻灯片中的图片需求...')
+      // 互动图片将在后续的统一处理中自动处理
+      console.log('✅ 互动图片将在统一处理中自动处理')
+    }
+    
+  }
+  catch (error) {
     console.error('❌ 创建互动幻灯片失败:', error)
   }
 }
@@ -301,13 +313,15 @@ const createSlideWithDefaultMethod = (processedAIData: any, matchedTemplate: any
     if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
       // 如果当前是空幻灯片，直接替换
       slideStore.setSlides([finalSlide])
-    } else {
+    }
+    else {
       // 如果已有幻灯片，则添加到现有幻灯片后面
       slideStore.addSlide(finalSlide)
     }
     
     console.log(`✅ 成功添加1张幻灯片，当前总数: ${slideStore.slides.length}`)
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ 默认方式创建幻灯片失败:', error)
   }
 }
@@ -338,7 +352,8 @@ const matchTemplate = async (aiData: any) => {
     
     // 返回默认模板
     return getDefaultTemplate()
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ 模板匹配失败:', error)
     return getDefaultTemplate()
   }
@@ -413,15 +428,15 @@ const createPPT = async () => {
                   aiData: aiData
                 })
                 
-              const useResult = await useResponse.json()
-              console.log('✅ 模板应用响应:', useResult)
+                const useResult = await useResponse.json()
+                console.log('✅ 模板应用响应:', useResult)
               
-              // 检查响应状态
-              if (!useResponse.ok) {
-                throw new Error(`HTTP ${useResponse.status}: ${useResult.message || '请求失败'}`)
-              }
+                // 检查响应状态
+                if (!useResponse.ok) {
+                  throw new Error(`HTTP ${useResponse.status}: ${useResult.message || '请求失败'}`)
+                }
               
-              if (useResult.status === 'success' && useResult.data) {
+                if (useResult.status === 'success' && useResult.data) {
                   // 使用后端返回的完整幻灯片数据
                   const templateSlides = useResult.data.slides || []
                   const processedSlides = []
@@ -458,22 +473,23 @@ const createPPT = async () => {
                   applyFixedViewportSettings(templateSize)
                   
                   // 第二步：将所有文字版幻灯片添加到幻灯片集合
-              const currentSlides = slideStore.slides
-              if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
-                // 如果当前是空幻灯片，直接替换
-                slideStore.setSlides(processedSlides)
-              }
-              else {
-                // 如果已有幻灯片，则添加到现有幻灯片后面
-                processedSlides.forEach(slide => slideStore.addSlide(slide))
-              }
+                  const currentSlides = slideStore.slides
+                  if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+                    // 如果当前是空幻灯片，直接替换
+                    slideStore.setSlides(processedSlides)
+                  }
+                  else {
+                    // 如果已有幻灯片，则添加到现有幻灯片后面
+                    processedSlides.forEach(slide => slideStore.addSlide(slide))
+                  }
                   
                   console.log(`✅ 成功添加 ${templateSlides.length} 张文字版幻灯片，当前总数: ${slideStore.slides.length}`)
                   
                   // 第三步：标记这个幻灯片需要处理AI图片
                   // 注意：不在这里处理，而是等所有幻灯片创建完成后统一处理
                   console.log('🖼️ 标记幻灯片需要AI图片生成处理')
-                } else {
+                }
+                else {
                   console.warn('⚠️ 模板应用失败，使用默认方式创建幻灯片')
                   // 回退到原来的方式
                   createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
@@ -523,16 +539,12 @@ const createPPT = async () => {
         
         // 延迟一点时间确保所有幻灯片都已经添加到store
         setTimeout(async () => {
-          // 调用 hook 中的方法，收集所有幻灯片中的图片并处理
-          collectAndQueueImages() // 不传参数，处理所有幻灯片
-          
-          if (imageGenerationQueue.value.length > 0) {
-            console.log(`🚀 检测到 ${imageGenerationQueue.value.length} 个图片需要AI生成，开始处理...`)
-            await startImageGeneration()
-            console.log('🎊 所有AI图片生成完成！')
-          } else {
-            console.log('📷 未找到需要AI生成的图片')
+          // 处理所有幻灯片的图片生成，processSlideImages 内部已包含检测逻辑
+          console.log('🚀 开始处理所有幻灯片的图片生成...')
+          for (const slide of slideStore.slides) {
+            await processSlideImages(slide)
           }
+          console.log('🎊 所有幻灯片图片处理完成！')
         }, 1000)
         
         return
@@ -675,17 +687,17 @@ const processAIDataForDisplay = (aiData: any) => {
           category: 'words'
         })
       }
-        else if (word && (word.word || word.content)) {
-          components.push({
-            type: 'word',
-            id: `word_${index}`,
-            word: word.word || word.content,
-            pronunciation: word.pronunciation || '',
-            meaning: word.meaning || '',
-            content: `${word.word || word.content}${word.pronunciation ? ` [${word.pronunciation}]` : ''}${word.meaning ? ` - ${word.meaning}` : ''}`,
-            category: 'words'
-          })
-        }
+      else if (word && (word.word || word.content)) {
+        components.push({
+          type: 'word',
+          id: `word_${index}`,
+          word: word.word || word.content,
+          pronunciation: word.pronunciation || '',
+          meaning: word.meaning || '',
+          content: `${word.word || word.content}${word.pronunciation ? ` [${word.pronunciation}]` : ''}${word.meaning ? ` - ${word.meaning}` : ''}`,
+          category: 'words'
+        })
+      }
     })
   }
   
@@ -701,16 +713,16 @@ const processAIDataForDisplay = (aiData: any) => {
           category: 'sentences'
         })
       }
-        else if (sentence && (sentence.sentence || sentence.content)) {
-          components.push({
-            type: 'sentence',
-            id: `sentence_${index}`,
-            sentence: sentence.sentence || sentence.content,
-            translation: sentence.translation || '',
-            content: `${sentence.sentence || sentence.content}${sentence.translation ? ` (${sentence.translation})` : ''}`,
-            category: 'sentences'
-          })
-        }
+      else if (sentence && (sentence.sentence || sentence.content)) {
+        components.push({
+          type: 'sentence',
+          id: `sentence_${index}`,
+          sentence: sentence.sentence || sentence.content,
+          translation: sentence.translation || '',
+          content: `${sentence.sentence || sentence.content}${sentence.translation ? ` (${sentence.translation})` : ''}`,
+          category: 'sentences'
+        })
+      }
     })
   }
   
@@ -726,16 +738,16 @@ const processAIDataForDisplay = (aiData: any) => {
           category: 'imageDescriptions'
         })
       }
-        else if (desc && (desc.description || desc.content)) {
-          components.push({
-            type: 'image',
-            id: `image_${index}`,
-            description: desc.description || desc.content,
-            purpose: desc.purpose || '',
-            content: `${desc.description || desc.content}${desc.purpose ? ` (用途：${desc.purpose})` : ''}`,
-            category: 'imageDescriptions'
-          })
-        }
+      else if (desc && (desc.description || desc.content)) {
+        components.push({
+          type: 'image',
+          id: `image_${index}`,
+          description: desc.description || desc.content,
+          purpose: desc.purpose || '',
+          content: `${desc.description || desc.content}${desc.purpose ? ` (用途：${desc.purpose})` : ''}`,
+          category: 'imageDescriptions'
+        })
+      }
     })
   }
   

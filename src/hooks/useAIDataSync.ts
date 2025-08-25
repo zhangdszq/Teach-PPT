@@ -4,7 +4,7 @@ import { useSlidesStore } from '@/store/slides'
 import type { PPTElement } from '@/types/slides'
 
 // 简单的防抖函数实现
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+function debounce<T extends(...args: any[]) => any>(func: T, wait: number): T {
   let timeout: number | null = null
   return ((...args: any[]) => {
     if (timeout) clearTimeout(timeout)
@@ -105,9 +105,11 @@ export function useAIDataSync() {
           // 内容类型根据文本特征进一步分类
           if (text.includes('?') || text.includes('？')) {
             questions.push(text)
-          } else if (text.length > 50 || text.includes('。') || text.includes('.')) {
+          }
+          else if (text.length > 50 || text.includes('。') || text.includes('.')) {
             sentences.push(text)
-          } else {
+          }
+          else {
             words.push(text)
           }
           break
@@ -115,9 +117,11 @@ export function useAIDataSync() {
           // 其他类型的文本内容
           if (text.includes('?') || text.includes('？')) {
             questions.push(text)
-          } else if (text.length > 50 || text.includes('。') || text.includes('.')) {
+          }
+          else if (text.length > 50 || text.includes('。') || text.includes('.')) {
             sentences.push(text)
-          } else {
+          }
+          else {
             words.push(text)
           }
           break
@@ -130,10 +134,11 @@ export function useAIDataSync() {
         // 只有标记了 imageType 的图片才处理
         if (element.alt) {
           imageDescriptions.push(element.alt)
-        } else {
+        }
+        else {
         // 如果没有 alt 描述，使用图片类型作为描述
-        imageDescriptions.push(`${element.imageType} 图片`)
-      }
+          imageDescriptions.push(`${element.imageType} 图片`)
+        }
       }
     }
     
