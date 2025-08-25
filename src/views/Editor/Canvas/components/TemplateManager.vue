@@ -418,10 +418,11 @@ const handleManualTemplateSelect = async (template: any) => {
           
           nextTick(() => {
             // 统一处理所有图片（静态图片 + 互动图片）
-            // 使用完整的后端响应数据
+            // 使用完整的后端响应数据，保持当前幻灯片的原始 ID
+            const currentSlide = slides.value[slideIndex.value]
             const slideDataForProcessing = {
               ...newSlideData,
-              id: slideIndex.value.toString(),
+              id: currentSlide.id, // 保持原始 ID，避免 ID 不匹配问题
               elements: processedElements
             }
             
