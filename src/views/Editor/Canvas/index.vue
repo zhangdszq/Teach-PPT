@@ -145,7 +145,7 @@ import useScaleCanvas from '@/hooks/useScaleCanvas'
 import useScreening from '@/hooks/useScreening'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useCreateElement from '@/hooks/useCreateElement'
-import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
+import useAIImageGeneration from '@/hooks/useAIImageGeneration'
 
 // Components
 import EditableElement from './EditableElement.vue'
@@ -218,8 +218,8 @@ const {
   processTemplateImages,
   hasTemplateImages,
   getTemplateImageCount,
-  isProcessing: isGeneratingImages
-} = useTemplateAIImageMethods()
+  isGeneratingImages
+} = useAIImageGeneration()
 
 // 监听幻灯片切换
 watch(() => slideIndex.value, (newIndex, oldIndex) => {

@@ -122,8 +122,7 @@ import { nanoid } from 'nanoid'
 import { courseTypeOptions as courseOptionsData } from '@/configs/course'
 import api from '@/services'
 import useAIPPT from '@/hooks/useAIPPT'
-import useAIImageGenerator from '@/hooks/useAIImageGenerator'
-import useInteractiveImageGeneration from '@/hooks/useInteractiveImageGeneration'
+import useAIImageGeneration from '@/hooks/useAIImageGeneration'
 import type { AIPPTSlide } from '@/types/AIPPT'
 import type { Slide, SlideTheme } from '@/types/slides'
 import message from '@/utils/message'
@@ -140,7 +139,7 @@ const mainStore = useMainStore()
 const slideStore = useSlidesStore()
 const { templates } = storeToRefs(slideStore)
 const { AIPPT, presetImgPool, getMdContent } = useAIPPT()
-const { processSlideImages, startImageGeneration, totalImageCount, processedImageCount, imageGenerationQueue } = useAIImageGenerator()
+const { processSlideImages, startImageGeneration, totalImageCount, processedImageCount, imageGenerationQueue } = useAIImageGeneration()
 
 const grade = ref('1年级')
 const style = ref('儿童友好')

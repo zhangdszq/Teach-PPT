@@ -11,10 +11,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
-import useInteractiveImageGeneration from '@/hooks/useInteractiveImageGeneration'
+import useAIImageGeneration from '@/hooks/useAIImageGeneration'
 import message from '@/utils/message'
 
 interface Props {
@@ -35,7 +35,7 @@ const emit = defineEmits<{
 
 const slidesStore = useSlidesStore()
 const { slideIndex, slides } = storeToRefs(slidesStore)
-const { hasInteractiveImages } = useInteractiveImageGeneration()
+const { hasInteractiveImages } = useAIImageGeneration()
 
 const iframeRef = ref<HTMLIFrameElement>()
 
@@ -141,13 +141,26 @@ const handleQuestionResult = (result: any) => {
   }
 }
 
+// 刷新iframe
+const refreshIframe = () => {
+  if (iframeRef.value) {
+    const currentSrc = iframeRef.value.src
+    iframeRef.value.src = 'about:blank'
+    nextTick(() => {
+      if (iframeRef.value) {
+        iframeRef.value.src = currentSrc
+      }
+    })
+  }
+}
+
 // 切换互动模式
 const toggleInteractiveMode = () => {
   emit('update:visible', !props.visible)
   message.success(props.visible ? '已退出互动模式' : '已切换到互动模式')
 }
 
-// 监听幻灯片切换，记录切换信息但不主动发送数据
+// 监听幻灯片切换，主动触发 iframe Ready 事件
 watch(
   () => slideIndex.value,
   (newIndex, oldIndex) => {
@@ -155,17 +168,24 @@ watch(
       const currentSlide = slides.value[newIndex]
       const oldSlide = slides.value[oldIndex]
       
-      // 如果新幻灯片是互动模板且与旧幻灯片不同
-      if (currentSlide?.type === 'iframe' && currentSlide.id !== oldSlide?.id) {
-        console.log('🔄 检测到互动模板切换，等待iframe ready后发送数据')
+      // 如果新幻灯片是互动模板
+      if (currentSlide?.type === 'iframe') {
+        console.log('🔄 检测到互动模板切换，主动刷新iframe触发ready事件')
         console.log('📊 切换详情:', {
           从: oldSlide?.id,
           到: currentSlide.id,
           新幻灯片类型: currentSlide.type,
           有templateData: !!currentSlide.templateData,
-          iframe可见: props.visible
+          iframe可见: props.visible,
+          iframeUrl: iframeUrl.value
         })
-        // 注释：不再主动发送数据，等待iframe发送ready消息时再发送
+        
+        // 主动刷新 iframe 来触发 Ready 事件
+        if (props.visible) {
+          nextTick(() => {
+            refreshIframe()
+          })
+        }
       }
     }
   }
@@ -197,7 +217,8 @@ onUnmounted(() => {
 
 defineExpose({
   toggleInteractiveMode,
-  sendMessageToIframe
+  sendMessageToIframe,
+  refreshIframe
 })
 </script>
 

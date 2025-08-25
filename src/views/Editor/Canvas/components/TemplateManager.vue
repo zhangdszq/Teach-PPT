@@ -92,9 +92,7 @@ import { ref, computed, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
 import { useSlidesStore, useMainStore } from '@/store'
-import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
-import useInteractiveImageGeneration from '@/hooks/useInteractiveImageGeneration'
-import useAIImageGenerator from '@/hooks/useAIImageGenerator'
+import useAIImageGeneration from '@/hooks/useAIImageGeneration'
 import api from '@/services'
 import message from '@/utils/message'
 import SaveTemplateDialog from '../../SaveTemplateDialog.vue'
@@ -117,9 +115,15 @@ const jsonError = ref('')
 const textareaRef = ref()
 const lineNumbersRef = ref()
 
-const { processTemplateImages, hasTemplateImages, getTemplateImageCount } = useTemplateAIImageMethods()
-const { hasInteractiveImages, getInteractiveImageCount } = useInteractiveImageGeneration()
-const { processSlideImages } = useAIImageGenerator()
+// 使用统一的AI图片生成hook
+const { 
+  processTemplateImages, 
+  hasTemplateImages, 
+  getTemplateImageCount,
+  hasInteractiveImages,
+  getInteractiveImageCount,
+  processSlideImages 
+} = useAIImageGeneration()
 
 const formattedContentData = computed(() => {
   if (!currentSlideData.value) return '暂无数据'

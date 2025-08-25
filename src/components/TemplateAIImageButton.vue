@@ -7,7 +7,7 @@
         class="process-button primary"
       >
         <span v-if="isProcessing">
-          正在生成图片 {{ processedCount }}/{{ totalCount }}...
+          正在生成图片 {{ processedImageCount }}/{{ totalImageCount }}...
         </span>
         <span v-else-if="hasCurrentSlideImages">
           生成当前幻灯片图片 ({{ currentSlideImageCount }}个)
@@ -51,23 +51,26 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import useTemplateAIImageMethods from '@/hooks/useTemplateAIImageMethods'
+import useAIImageGeneration from '@/hooks/useAIImageGeneration'
 
 const {
-  isProcessing,
-  processedCount,
-  totalCount,
+  isGeneratingImages,
+  processedImageCount,
+  totalImageCount,
   processTemplateImages,
   processAllTemplateImages,
   hasTemplateImages,
   getTemplateImageCount,
-  hasAllTemplateImages,
   getAllTemplateImageCount
-} = useTemplateAIImageMethods()
+} = useAIImageGeneration()
+
+// 为了简化模板中的使用
+const isProcessing = isGeneratingImages
+
 
 const hasCurrentSlideImages = computed(() => hasTemplateImages())
 const currentSlideImageCount = computed(() => getTemplateImageCount())
-const hasAllImages = computed(() => hasAllTemplateImages())
+const hasAllImages = computed(() => getAllTemplateImageCount() > 0)
 const allImageCount = computed(() => getAllTemplateImageCount())
 
 const handleProcessCurrentSlideImages = async () => {

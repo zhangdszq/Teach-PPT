@@ -5,7 +5,7 @@ import type { AIPPTSlide } from '@/types/AIPPT'
 import { useSlidesStore } from '@/store'
 import useAddSlidesOrElements from './useAddSlidesOrElements'
 import useSlideHandler from './useSlideHandler'
-import useAIImageGenerator from './useAIImageGenerator'
+import useAIImageGeneration from './useAIImageGeneration'
 
 interface ImgPoolItem {
   id: string
@@ -26,7 +26,7 @@ export default () => {
     imageGenerationQueue,
     startImageGeneration,
     processSlideImages,
-  } = useAIImageGenerator()
+  } = useAIImageGeneration()
 
   const imgPool = ref<ImgPoolItem[]>([])
   const transitionIndex = ref(0)

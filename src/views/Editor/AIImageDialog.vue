@@ -57,7 +57,7 @@
 import { ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore, useSlidesStore } from '@/store'
-import useAIImage from '@/hooks/useAIImage'
+import useAIImageGeneration from '@/hooks/useAIImageGeneration'
 import Modal from '@/components/Modal.vue'
 import TextArea from '@/components/TextArea.vue'
 import Select from '@/components/Select.vue'
@@ -76,7 +76,7 @@ const slidesStore = useSlidesStore()
 const { handleElementId } = storeToRefs(mainStore)
 const { slideIndex } = storeToRefs(slidesStore)
 
-const { isGenerating, generateAIImage } = useAIImage()
+const { isGenerating, generateAIImage } = useAIImageGeneration()
 
 const prompt = ref('')
 const selectedModel = ref('jimeng')
