@@ -19,6 +19,7 @@ interface AIPPTPayload {
   grade: string
   style: string
   model: string
+  lessonId?: number
 }
 
 interface AIWritingPayload {
@@ -78,6 +79,7 @@ const api = {
     grade,
     style,
     model,
+    lessonId,
   }: AIPPTPayload): Promise<any> {
     return fetch(`${SERVER_URL}/api/ai/aippt`, {
       method: 'POST',
@@ -90,6 +92,7 @@ const api = {
         grade,
         model,
         style,
+        lessonId,
         stream: true,
       }),
     })

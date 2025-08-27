@@ -40,14 +40,18 @@ if (import.meta.env.MODE !== 'development') {
 const getUrlParams = () => {
   const urlParams = new URLSearchParams(window.location.search)
   return {
-    pptId: urlParams.get('pptId')
+    pptId: urlParams.get('pptId'),
+    lessonId: urlParams.get('lessonId'),
+    grade: urlParams.get('grade'),
+    courseType: urlParams.get('courseType')
   }
 }
 
 onMounted(async () => {
-  const { pptId } = getUrlParams()
+  const { pptId, lessonId, grade, courseType } = getUrlParams()
   
   let slidesData
+  
   if (pptId) {
     // 如果有pptId参数，从服务器加载对应的PPT数据
     try {
@@ -65,7 +69,7 @@ onMounted(async () => {
         })
         
         if (slidesData && slidesData.length > 0) {
-          slidesData.forEach((slide, index) => {
+          slidesData.forEach((slide: any, index: number) => {
             if (slide.aiData) {
               console.log(`🤖 第 ${index + 1} 页包含 aiData:`, slide.aiData)
             }
@@ -92,12 +96,55 @@ onMounted(async () => {
       slidesData = await api.getFileData('slides')
     }
   }
+  else if (lessonId && grade && courseType) {
+    // 如果有lessonId参数，调用AI PPT接口生成数据
+    try {
+      console.log('🤖 使用lessonId生成AI PPT:', { lessonId, grade, courseType })
+      
+      // 构造课程内容，这里可以根据lessonId获取具体的课程内容
+      // 暂时使用lessonId作为内容，实际应用中可能需要从其他接口获取课程详细内容
+      const content = `课程ID: ${lessonId}`
+      
+      // 使用复用的AI PPT生成函数
+      const { generateAIPPT } = await import('@/utils/aiPPTGenerator')
+      
+      await generateAIPPT(
+        {
+          content,
+          courseType,
+          grade,
+          style: 'modern',
+          model: 'gemini-2.0-flash',
+          lessonId
+        },
+        (progress) => {
+          console.log('🔄 生成进度:', progress)
+        },
+        () => {
+          console.log('✅ AI PPT生成完成')
+        },
+        (error) => {
+          console.error('❌ AI PPT生成失败:', error)
+        }
+      )
+      
+      return // 提前返回，避免重复设置slides
+    }
+    catch (error) {
+      console.error('❌ AI PPT生成失败:', error)
+      // 生成失败时使用默认模板
+      slidesData = await api.getFileData('slides')
+    }
+  }
   else {
-    // 没有pptId参数时，加载默认模板
+    // 没有pptId或lessonId参数时，加载默认模板
     slidesData = await api.getFileData('slides')
   }
   
-  slidesStore.setSlides(slidesData)
+  // 只有在非lessonId流程中才设置slides
+  if (slidesData) {
+    slidesStore.setSlides(slidesData)
+  }
 
   await deleteDiscardedDB()
   snapshotStore.initSnapshotDatabase()
