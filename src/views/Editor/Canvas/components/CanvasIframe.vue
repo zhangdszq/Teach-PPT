@@ -169,13 +169,16 @@ watch(
       const currentSlide = slides.value[newIndex]
       const oldSlide = slides.value[oldIndex]
       
-      // 如果新幻灯片是互动模板
-      if (currentSlide?.type === 'iframe') {
+      // 如果新幻灯片是互动模板（检查type为iframe或isInteractive为true）
+      const isInteractiveSlide = currentSlide?.type === 'iframe' || currentSlide?.isInteractive === true
+      
+      if (isInteractiveSlide) {
         console.log('🔄 检测到互动模板切换，主动刷新iframe触发ready事件')
         console.log('📊 切换详情:', {
           从: oldSlide?.id,
           到: currentSlide.id,
           新幻灯片类型: currentSlide.type,
+          isInteractive: currentSlide.isInteractive,
           有templateData: !!currentSlide.templateData,
           iframe可见: props.visible,
           iframeUrl: iframeUrl.value
@@ -200,8 +203,11 @@ watch(
   },
   (newTemplateData) => {
     const currentSlide = slides.value[slideIndex.value]
-    if (currentSlide?.type === 'iframe' && newTemplateData) {
-      console.log('📊 检测到templateData变化，等待iframe ready后发送数据')
+    // 检查是否为互动幻灯片（type为iframe或isInteractive为true）
+    const isInteractiveSlide = currentSlide?.type === 'iframe' || currentSlide?.isInteractive === true
+    
+    if (isInteractiveSlide && newTemplateData) {
+      console.log('📊 检测到互动幻灯片templateData变化，等待iframe ready后发送数据')
       // 注释：不再主动发送数据，等待iframe发送ready消息时再发送
     }
   },
