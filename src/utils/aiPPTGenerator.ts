@@ -3,6 +3,7 @@ import { createBlankSlide, createSlideFromAIData } from '@/utils/slideUtils'
 import { nanoid } from 'nanoid'
 import { processElementsWithFixedViewport, applyFixedViewportSettings } from '@/views/Editor/Canvas/utils/elementScaler'
 import api from '@/services'
+import useAIImageGeneration from '@/hooks/useAIImageGeneration'
 import type { Slide } from '@/types/slides'
 
 // AI PPT生成参数接口
@@ -415,9 +416,19 @@ export const generateAIPPT = async (
           onProgress?.('PPT生成完成，正在处理图片...')
           
           // 延迟处理图片生成
-          setTimeout(() => {
+          setTimeout(async () => {
             try {
-              // 这里可以添加图片处理逻辑
+              console.log('🖼️ 开始处理图片生成...')
+              const { processSlideImages, startImageGeneration } = useAIImageGeneration()
+              
+              // 为所有幻灯片添加图片到生成队列
+              for (const slide of slidesStore.slides) {
+                await processSlideImages(slide)
+              }
+              
+              // 启动图片生成队列处理
+              await startImageGeneration()
+              
               console.log('🎊 所有处理完成！')
               onComplete?.()
             }

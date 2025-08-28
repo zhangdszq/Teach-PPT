@@ -210,7 +210,7 @@ export class ImageGenerationManager {
               elementId: virtualElement.id,
               prompt: value.trim(),
               element: virtualElement,
-              priority: 1, // 互动图片中优先级
+              priority: 0, // 互动图片中优先级
               type: 'interactive',
               templateDataPath: imgUrlPath,
               retryCount: 0,

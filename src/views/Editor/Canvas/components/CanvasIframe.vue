@@ -7,6 +7,7 @@
     :src="iframeUrl"
     frameborder="0"
     allowfullscreen
+    allow="microphone; camera; autoplay; encrypted-media; fullscreen"
   ></iframe>
 </template>
 

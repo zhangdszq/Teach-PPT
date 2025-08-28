@@ -104,7 +104,7 @@
       </div>
     </div>
 
-    <FullscreenSpin :loading="loading" tip="正在生成英语教学课件，请耐心等待 ..." />
+    <FullscreenSpin :loading="loading" :mask="true" tip="正在生成英语教学课件，请耐心等待 ..." />
     
     <!-- 风格选择对话框 -->
     <StyleSelectDialog 
@@ -208,7 +208,6 @@ const createOutline = async () => {
     model: model.value,
   })
 
-  loading.value = false
   step.value = 'outline'
 
   const reader: ReadableStreamDefaultReader = stream.body.getReader()
@@ -221,6 +220,7 @@ const createOutline = async () => {
         outline.value = getMdContent(outline.value)
         outline.value = outline.value.replace(/<!--[\s\S]*?-->/g, '').replace(/<think>[\s\S]*?<\/think>/g, '')
         outlineCreating.value = false
+        loading.value = false
         return
       }
   
@@ -232,8 +232,13 @@ const createOutline = async () => {
       }
 
       readStream()
+    }).catch(error => {
+      console.error('❌ 大纲生成流读取错误:', error)
+      loading.value = false
+      outlineCreating.value = false
     })
   }
+  
   readStream()
 }
 
@@ -361,205 +366,220 @@ const matchTemplate = async (aiData: any) => {
 const createPPT = async () => {
   loading.value = true
 
-  const stream = await api.AIPPT({
-    content: outline.value,
-    courseType: courseType.value,
-    grade: grade.value,
-    style: style.value,
-    model: model.value,
-  })
+  try {
+    const stream = await api.AIPPT({
+      content: outline.value,
+      courseType: courseType.value,
+      grade: grade.value,
+      style: style.value,
+      model: model.value,
+    })
 
-  const reader: ReadableStreamDefaultReader = stream.body.getReader()
-  const decoder = new TextDecoder('utf-8')
+    const reader: ReadableStreamDefaultReader = stream.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    
+    let buffer = '' // 用于累积不完整的数据
   
-  let buffer = '' // 用于累积不完整的数据
-  
-  // 处理缓冲区数据的函数
-  const processBufferData = async (data: string) => {
-    try {
-      // 清理数据，移除markdown代码块标记
-      const cleanData = data.replace(/```json/g, '').replace(/```/g, '').trim()
+    // 处理缓冲区数据的函数
+    const processBufferData = async (data: string) => {
+      try {
+        // 清理数据，移除markdown代码块标记
+        const cleanData = data.replace(/```json/g, '').replace(/```/g, '').trim()
       
-      if (!cleanData) return
-      
-      console.log('🎯 处理缓冲区数据:', cleanData.substring(0, 200) + '...')
-      
-      // 按 PAGE_SEPARATOR 分割数据，每个部分是一个完整的JSON对象
-      const pages = cleanData.split('---PAGE_SEPARATOR---').filter(page => page.trim())
-      
-      for (const pageData of pages) {
-        const trimmedPageData = pageData.trim()
-        if (!trimmedPageData) continue
+        if (!cleanData) return
         
-        try {
-          // 尝试解析每个页面数据作为JSON
-          const aiData = JSON.parse(trimmedPageData)
+        console.log('🎯 处理缓冲区数据:', cleanData.substring(0, 200) + '...')
+        
+        // 按 PAGE_SEPARATOR 分割数据，每个部分是一个完整的JSON对象
+        const pages = cleanData.split('---PAGE_SEPARATOR---').filter(page => page.trim())
+        
+        for (const pageData of pages) {
+          const trimmedPageData = pageData.trim()
+          if (!trimmedPageData) continue
           
-          if (aiData && typeof aiData === 'object') {
-            console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
+          try {
+            // 尝试解析每个页面数据作为JSON
+            const aiData = JSON.parse(trimmedPageData)
+          
+            if (aiData && typeof aiData === 'object') {
+              console.log('📄 成功解析AI数据，开始创建PPT页面:', aiData)
+              
+              // 检查是否为互动模板
+              if (aiData.isInteractive) {
+                console.log('🎮 检测到互动模板数据，开始创建互动页面:', aiData)
+                await createInteractiveSlide(aiData)
+                continue
+              }
             
-            // 检查是否为互动模板
-            if (aiData.isInteractive) {
-              console.log('🎮 检测到互动模板数据，开始创建互动页面:', aiData)
-              await createInteractiveSlide(aiData)
-              continue
-            }
+              // 创建一页空白PPT
+              const blankSlide = createBlankSlide()
+              console.log('✅ 创建空白PPT页面，ID:', blankSlide.id)
+              
+              // 处理AI数据，使用words、sentences、imageDescriptions替代content
+              const processedAIData = processAIDataForDisplay(aiData)
+              console.log('🔄 数据处理完成，组件数量:', processedAIData.components?.length || 0)
+              console.log('🔍 处理后的组件详情:', processedAIData.components)
+              
+              // 调用后端模板匹配接口
+              const matchedTemplate = await matchTemplate(aiData)
+              console.log('🎨 模板匹配完成:', matchedTemplate)
             
-            // 创建一页空白PPT
-            const blankSlide = createBlankSlide()
-            console.log('✅ 创建空白PPT页面，ID:', blankSlide.id)
-            
-            // 处理AI数据，使用words、sentences、imageDescriptions替代content
-            const processedAIData = processAIDataForDisplay(aiData)
-            console.log('🔄 数据处理完成，组件数量:', processedAIData.components?.length || 0)
-            console.log('🔍 处理后的组件详情:', processedAIData.components)
-            
-            // 调用后端模板匹配接口
-            const matchedTemplate = await matchTemplate(aiData)
-            console.log('🎨 模板匹配完成:', matchedTemplate)
-            
-            // 如果匹配到模板，调用use接口应用模板
-            if (matchedTemplate && matchedTemplate.templateId !== 'default') {
-              try {
-                console.log('🔧 调用use接口应用模板:', matchedTemplate.templateId)
-                const useResponse = await api.useTemplate({
-                  templateId: matchedTemplate.templateId,
-                  aiData: aiData
-                })
+              // 如果匹配到模板，调用use接口应用模板
+              if (matchedTemplate && matchedTemplate.templateId !== 'default') {
+                try {
+                  console.log('🔧 调用use接口应用模板:', matchedTemplate.templateId)
+                  const useResponse = await api.useTemplate({
+                    templateId: matchedTemplate.templateId,
+                    aiData: aiData
+                  })
                 
-                const useResult = await useResponse.json()
-                console.log('✅ 模板应用响应:', useResult)
-              
-                // 检查响应状态
-                if (!useResponse.ok) {
-                  throw new Error(`HTTP ${useResponse.status}: ${useResult.message || '请求失败'}`)
-                }
-              
-                if (useResult.status === 'success' && useResult.data) {
-                  // 使用后端返回的完整幻灯片数据
-                  const templateSlides = useResult.data.slides || []
-                  const processedSlides = []
-                  
-                  // 提取模板尺寸信息，优先从根级别获取
-                  const templateSize = {
-                    width: useResult.data.width || useResult.width || 1280,
-                    height: useResult.data.height || useResult.height || 720
+                  const useResult = await useResponse.json()
+                  console.log('✅ 模板应用响应:', useResult)
+                
+                  // 检查响应状态
+                  if (!useResponse.ok) {
+                    throw new Error(`HTTP ${useResponse.status}: ${useResult.message || '请求失败'}`)
                   }
-                  
-                  console.log('🔍 从use接口获取的模板尺寸:', templateSize)
-                  
-                  // 第一步：先创建所有文字版幻灯片并应用尺寸适配
-                  for (const slideData of templateSlides) {
-                    // 为每个幻灯片创建新的ID
-                    const slideId = nanoid(10)
+                
+                  if (useResult.status === 'success' && useResult.data) {
+                    // 使用后端返回的完整幻灯片数据
+                    const templateSlides = useResult.data.slides || []
+                    const processedSlides = []
                     
-                    // 应用固定视口适配处理元素
-                    const adaptedElements = processElementsWithFixedViewport(slideData.elements || [], templateSize)
-                    
-                    // 构建完整的幻灯片对象
-                    const finalSlide: Slide = {
-                      id: slideId,
-                      elements: adaptedElements,
-                      background: slideData.background || { type: 'solid', color: '#ffffff' },
-                      aiData: aiData // 保存原始AI数据
+                    // 提取模板尺寸信息，优先从根级别获取
+                    const templateSize = {
+                      width: useResult.data.width || useResult.width || 1280,
+                      height: useResult.data.height || useResult.height || 720
                     }
                     
-                    console.log('📝 创建适配后的幻灯片:', finalSlide.id, '元素数量:', finalSlide.elements.length)
-                    processedSlides.push(finalSlide)
-                  }
-                  
-                  // 应用固定视口设置
-                  applyFixedViewportSettings(templateSize)
-                  
-                  // 第二步：将所有文字版幻灯片添加到幻灯片集合
-                  const currentSlides = slideStore.slides
-                  if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
-                    // 如果当前是空幻灯片，直接替换
-                    slideStore.setSlides(processedSlides)
+                    console.log('🔍 从use接口获取的模板尺寸:', templateSize)
+                    
+                    // 第一步：先创建所有文字版幻灯片并应用尺寸适配
+                    for (const slideData of templateSlides) {
+                      // 为每个幻灯片创建新的ID
+                      const slideId = nanoid(10)
+                      
+                      // 应用固定视口适配处理元素
+                      const adaptedElements = processElementsWithFixedViewport(slideData.elements || [], templateSize)
+                      
+                      // 构建完整的幻灯片对象
+                      const finalSlide: Slide = {
+                        id: slideId,
+                        elements: adaptedElements,
+                        background: slideData.background || { type: 'solid', color: '#ffffff' },
+                        aiData: aiData // 保存原始AI数据
+                      }
+                      
+                      console.log('📝 创建适配后的幻灯片:', finalSlide.id, '元素数量:', finalSlide.elements.length)
+                      processedSlides.push(finalSlide)
+                    }
+                    
+                    // 应用固定视口设置
+                    applyFixedViewportSettings(templateSize)
+                    
+                    // 第二步：将所有文字版幻灯片添加到幻灯片集合
+                    const currentSlides = slideStore.slides
+                    if (currentSlides.length === 0 || (currentSlides.length === 1 && !currentSlides[0].elements.length)) {
+                      // 如果当前是空幻灯片，直接替换
+                      slideStore.setSlides(processedSlides)
+                    }
+                    else {
+                      // 如果已有幻灯片，则添加到现有幻灯片后面
+                      processedSlides.forEach(slide => slideStore.addSlide(slide))
+                    }
+                    
+                    console.log(`✅ 成功添加 ${templateSlides.length} 张文字版幻灯片，当前总数: ${slideStore.slides.length}`)
+                    
+                    // 第三步：标记这个幻灯片需要处理AI图片
+                    // 注意：不在这里处理，而是等所有幻灯片创建完成后统一处理
+                    console.log('🖼️ 标记幻灯片需要AI图片生成处理')
                   }
                   else {
-                    // 如果已有幻灯片，则添加到现有幻灯片后面
-                    processedSlides.forEach(slide => slideStore.addSlide(slide))
+                    console.warn('⚠️ 模板应用失败，使用默认方式创建幻灯片')
+                    // 回退到原来的方式
+                    createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
                   }
-                  
-                  console.log(`✅ 成功添加 ${templateSlides.length} 张文字版幻灯片，当前总数: ${slideStore.slides.length}`)
-                  
-                  // 第三步：标记这个幻灯片需要处理AI图片
-                  // 注意：不在这里处理，而是等所有幻灯片创建完成后统一处理
-                  console.log('🖼️ 标记幻灯片需要AI图片生成处理')
                 }
-                else {
-                  console.warn('⚠️ 模板应用失败，使用默认方式创建幻灯片')
+                catch (useError) {
+                  console.error('❌ 调用use接口失败:', useError)
                   // 回退到原来的方式
                   createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
                 }
               }
-              catch (useError) {
-                console.error('❌ 调用use接口失败:', useError)
-                // 回退到原来的方式
+              else {
+                console.log('🔄 使用默认模板创建幻灯片')
+                // 使用默认方式创建幻灯片
                 createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
               }
             }
-            else {
-              console.log('🔄 使用默认模板创建幻灯片')
-              // 使用默认方式创建幻灯片
-              createSlideWithDefaultMethod(processedAIData, matchedTemplate, blankSlide, aiData)
-            }
+          }
+          catch (pageError) {
+            // 页面解析失败，可能是不完整的JSON，继续处理下一页
+            console.log('⚠️ 跳过无法解析的页面:', trimmedPageData.substring(0, 50) + '...')
           }
         }
-        catch (pageError) {
-          // 页面解析失败，可能是不完整的JSON，继续处理下一页
-          console.log('⚠️ 跳过无法解析的页面:', trimmedPageData.substring(0, 50) + '...')
-        }
+        
+        // 清空已处理的缓冲区
+        buffer = ''
+        
       }
-      
-      // 清空已处理的缓冲区
-      buffer = ''
-      
+      catch (err) {
+        console.error('❌ 处理缓冲区数据失败:', err)
+        // 不显示错误消息，因为可能是数据不完整导致的正常情况
+      }
     }
-    catch (err) {
-      console.error('❌ 处理缓冲区数据失败:', err)
-      // 不显示错误消息，因为可能是数据不完整导致的正常情况
-    }
-  }
-  
-  const readStream = () => {
-    reader.read().then(async ({ done, value }) => {
-      if (done) {
-        // 处理最后剩余的数据
-        if (buffer.trim()) {
-          await processBufferData(buffer)
+    
+    const readStream = () => {
+      reader.read().then(async ({ done, value }) => {
+        if (done) {
+          // 处理最后剩余的数据
+          if (buffer.trim()) {
+            await processBufferData(buffer)
+          }
+          loading.value = false
+          mainStore.setAIPPTDialogState(false)
+          
+          // 在流结束后统一处理所有AI图片生成
+          console.log('🏁 PPT生成流已完成，开始统一处理AI图片生成...')
+          
+          // 延迟一点时间确保所有幻灯片都已经添加到store
+          setTimeout(async () => {
+            // 处理所有幻灯片的图片生成，processSlideImages 内部已包含检测逻辑
+            console.log('🚀 开始处理所有幻灯片的图片生成...')
+            for (const slide of slideStore.slides) {
+              await processSlideImages(slide)
+            }
+            console.log('🎊 所有幻灯片图片处理完成！')
+          }, 1000)
+          
+          return
         }
+    
+        const chunk = decoder.decode(value, { stream: true })
+        buffer += chunk
+        
+        // 尝试从缓冲区中提取完整的JSON对象
+        await processBufferData(buffer)
+
+        readStream()
+      }).catch(error => {
+        console.error('❌ 流读取错误:', error)
         loading.value = false
         mainStore.setAIPPTDialogState(false)
-        
-        // 在流结束后统一处理所有AI图片生成
-        console.log('🏁 PPT生成流已完成，开始统一处理AI图片生成...')
-        
-        // 延迟一点时间确保所有幻灯片都已经添加到store
-        setTimeout(async () => {
-          // 处理所有幻灯片的图片生成，processSlideImages 内部已包含检测逻辑
-          console.log('🚀 开始处理所有幻灯片的图片生成...')
-          for (const slide of slideStore.slides) {
-            await processSlideImages(slide)
-          }
-          console.log('🎊 所有幻灯片图片处理完成！')
-        }, 1000)
-        
-        return
-      }
-  
-      const chunk = decoder.decode(value, { stream: true })
-      buffer += chunk
-      
-      // 尝试从缓冲区中提取完整的JSON对象
-      await processBufferData(buffer)
-
-      readStream()
-    })
+        // 可以在这里添加错误提示
+        // message.error('PPT生成过程中出现错误，请重试')
+      })
+    }
+    
+    readStream()
   }
-  
-  readStream()
+  catch (error) {
+    console.error('❌ PPT生成初始化错误:', error)
+    loading.value = false
+    mainStore.setAIPPTDialogState(false)
+    // 可以在这里添加错误提示
+    // message.error('PPT生成失败，请重试')
+  }
 }
 
 // 从AI数据中提取布局类型
