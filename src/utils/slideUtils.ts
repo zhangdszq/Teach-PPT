@@ -58,8 +58,6 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
         const left = isLeftColumn ? 100 : (100 + columnWidth + columnSpacing)
         
         // 根据组件类型创建不同样式的元素
-        console.log(`🔧 创建组件: ${component.type}, ID: ${component.id}, 内容:`, component)
-        
         if (component.type === 'subtitle') {
           elements.push({
             type: 'text' as const,
@@ -73,22 +71,18 @@ export const createSlideFromAIData = (aiData: any, matchedTemplate: any, slideId
             defaultFontName: '微软雅黑',
             defaultColor: '#555555'
           })
-          console.log('✅ 创建副标题组件:', component.id)
         }
         else if (component.type === 'word') {
           const wordElement = createWordElement(component, left, currentTop, columnWidth)
           elements.push(wordElement)
-          console.log('✅ 创建单词组件:', wordElement.id)
         }
         else if (component.type === 'sentence') {
           const sentenceElement = createSentenceElement(component, left, currentTop, columnWidth)
           elements.push(sentenceElement)
-          console.log('✅ 创建句子组件:', sentenceElement.id)
         }
         else if (component.type === 'image') {
           const imageElement = createImageDescriptionElement(component, left, currentTop, columnWidth)
           elements.push(imageElement)
-          console.log('✅ 创建图像描述组件:', imageElement.id)
         }
         else {
           console.warn('⚠️ 未知组件类型:', component.type)
