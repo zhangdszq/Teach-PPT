@@ -4,13 +4,21 @@
     <Editor v-else-if="_isPC" />
     <Mobile v-else />
   </template>
-  <FullscreenSpin tip="数据初始化中，请稍等 ..." v-else  loading :mask="false" />
+  <FullscreenSpin tip="数据初始化中，请稍等 ..." v-else-if="!pptGenerating" loading :mask="false" />
+  
+  <!-- PPT生成时的半透明遮罩 -->
+  <FullscreenSpin 
+    v-if="pptGenerating" 
+    :loading="pptGenerating" 
+    :mask="true" 
+    tip="正在生成AI教学PPT，请耐心等待 ..." 
+  />
 </template>
 
 
 
 <script lang="ts" setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useScreenStore, useMainStore, useSnapshotStore, useSlidesStore } from '@/store'
 import { LOCALSTORAGE_KEY_DISCARDED_DB } from '@/configs/storage'
@@ -24,6 +32,9 @@ import Mobile from './views/Mobile/index.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
 
 const _isPC = isPC()
+
+// 添加PPT生成状态管理
+const pptGenerating = ref(false)
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
@@ -101,6 +112,9 @@ onMounted(async () => {
     try {
       console.log('🤖 使用lessonId生成AI PPT:', { lessonId, grade, courseType })
       
+      // 显示PPT生成遮罩
+      pptGenerating.value = true
+      
       // 构造课程内容，这里可以根据lessonId获取具体的课程内容
       // 暂时使用lessonId作为内容，实际应用中可能需要从其他接口获取课程详细内容
       const content = `课程ID: ${lessonId}`
@@ -115,16 +129,20 @@ onMounted(async () => {
           grade,
           style: 'modern',
           model: 'gemini-2.0-flash',
-          lessonId
+          lessonId: parseInt(lessonId)
         },
         (progress) => {
           console.log('🔄 生成进度:', progress)
         },
         () => {
           console.log('✅ AI PPT生成完成')
+          // 隐藏PPT生成遮罩
+          pptGenerating.value = false
         },
         (error) => {
           console.error('❌ AI PPT生成失败:', error)
+          // 生成失败时也要隐藏遮罩
+          pptGenerating.value = false
         }
       )
       
@@ -132,6 +150,8 @@ onMounted(async () => {
     }
     catch (error) {
       console.error('❌ AI PPT生成失败:', error)
+      // 生成失败时隐藏遮罩
+      pptGenerating.value = false
       // 生成失败时使用默认模板
       slidesData = await api.getFileData('slides')
     }
