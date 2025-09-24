@@ -1,3 +1,48 @@
+import { SERVER_URL } from '@/services'
+import { captureScreenshot } from './screenshot'
+
+interface ImageSize {
+  width: number
+  height: number
+}
+
+/**
+ * 将外部图片URL转换为代理URL，解决CORS问题
+ * @param originalUrl 原始图片URL
+ * @returns 代理后的URL
+ */
+export const getProxiedImageUrl = (originalUrl: string): string => {
+  if (!originalUrl || typeof originalUrl !== 'string') {
+    return originalUrl
+  }
+  
+  // 如果是本地URL或已经是代理URL，直接返回
+  if (originalUrl.startsWith('/') || 
+      originalUrl.includes('localhost') || 
+      originalUrl.includes('127.0.0.1') ||
+      originalUrl.includes('/api/image/proxy')) {
+    return originalUrl
+  }
+  
+  // 如果是外部URL，使用代理
+  if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
+    const proxyUrl = `${SERVER_URL}/api/image/proxy?url=${encodeURIComponent(originalUrl)}`
+    console.log('🔄 转换图片URL为代理:', originalUrl, '->', proxyUrl)
+    return proxyUrl
+  }
+  
+  return originalUrl
+}
+
+/**
+ * 批量转换图片URL为代理URL
+ * @param urls 图片URL数组
+ * @returns 代理后的URL数组
+ */
+export const getProxiedImageUrls = (urls: string[]): string[] => {
+  return urls.map(url => getProxiedImageUrl(url))
+}
+
 interface ImageSize {
   width: number
   height: number
@@ -146,7 +191,7 @@ export const compressImage = (
 }
 
 /**
- * 截图当前页面元素
+ * 截图当前页面元素 - 使用统一的截图函数
  * @param targetElement 目标元素，如果不提供则自动查找
  * @param options 截图选项
  */
@@ -160,134 +205,5 @@ export const captureElement = async (
     quality?: number
   } = {}
 ): Promise<string | null> => {
-  const {
-    backgroundColor = '#ffffff',
-    scale = 1,
-    maxWidth = 800,
-    maxHeight = 600,
-    quality = 0.8
-  } = options
-  
-  try {
-    console.log('🔍 开始截图...')
-    
-    // 如果没有提供目标元素，自动查找
-    if (!targetElement) {
-      const selectors = [
-        '.canvas',
-        '.viewport-wrapper',
-        '.viewport',
-        '.slide-content',
-        '.editor-content',
-        '[class*="canvas"]',
-        '[class*="viewport"]',
-        '[class*="slide"]'
-      ]
-      
-      for (const selector of selectors) {
-        const element = document.querySelector(selector) as HTMLElement
-        if (element && element.offsetWidth > 0 && element.offsetHeight > 0) {
-          targetElement = element
-          console.log(`✅ 找到可用元素: ${selector}`)
-          break
-        }
-      }
-      
-      if (!targetElement) {
-        console.error('❌ 未找到任何可用的页面元素')
-        targetElement = document.body
-        console.log('🔄 使用body元素作为备选方案')
-      }
-    }
-    
-    let capturedCanvas: HTMLCanvasElement | null = null
-    
-    // 方法1: 尝试使用html2canvas（如果可用）
-    if (window.html2canvas) {
-      console.log('🎨 使用html2canvas进行截图...')
-      try {
-        capturedCanvas = await window.html2canvas(targetElement, {
-          backgroundColor,
-          scale,
-          useCORS: true,
-          allowTaint: true,
-          width: targetElement.offsetWidth,
-          height: targetElement.offsetHeight,
-          logging: false
-        })
-        
-        console.log('✅ html2canvas截图成功')
-      }
-      catch (html2canvasError) {
-        console.warn('⚠️ html2canvas截图失败:', html2canvasError)
-      }
-    }
-    
-    // 方法2: 查找现有的canvas元素
-    if (!capturedCanvas) {
-      const canvasElements = document.querySelectorAll('canvas')
-      console.log('🔍 找到canvas元素数量:', canvasElements.length)
-      
-      for (let i = 0; i < canvasElements.length; i++) {
-        const canvas = canvasElements[i] as HTMLCanvasElement
-        if (canvas.width > 0 && canvas.height > 0) {
-          try {
-            // 测试是否可以访问canvas数据
-            canvas.toDataURL('image/png', 0.1)
-            capturedCanvas = canvas
-            console.log(`✅ 使用第${i + 1}个canvas元素`)
-            break
-          }
-          catch (canvasError) {
-            console.warn(`⚠️ 第${i + 1}个canvas元素不可访问:`, canvasError)
-          }
-        }
-      }
-    }
-    
-    // 方法3: 动态加载html2canvas并重试
-    if (!capturedCanvas && !window.html2canvas) {
-      console.log('📦 尝试动态加载html2canvas...')
-      try {
-        await loadHtml2Canvas()
-        if (window.html2canvas) {
-          capturedCanvas = await window.html2canvas(targetElement, {
-            backgroundColor,
-            scale,
-            useCORS: true,
-            allowTaint: true
-          })
-          console.log('✅ 动态加载html2canvas截图成功')
-        }
-      }
-      catch (loadError) {
-        console.warn('⚠️ 动态加载html2canvas失败:', loadError)
-      }
-    }
-    
-    // 如果获取到了canvas，进行压缩处理
-    if (capturedCanvas && capturedCanvas.width > 0 && capturedCanvas.height > 0) {
-      const originalSize = Math.round(capturedCanvas.toDataURL('image/png').length / 1024)
-      console.log(`📏 原始图片大小: ${originalSize}KB`)
-      
-      // 压缩图片
-      const compressedBase64 = compressImage(capturedCanvas, maxWidth, maxHeight, quality)
-      const compressedSize = Math.round(compressedBase64.length / 1024)
-      
-      console.log(`✅ 图片压缩完成: ${originalSize}KB -> ${compressedSize}KB`)
-      
-      return compressedBase64
-    }
-    else if (capturedCanvas) {
-      console.warn('⚠️ 截图canvas尺寸无效:', capturedCanvas.width, 'x', capturedCanvas.height)
-    }
-    
-    console.error('❌ 所有截图方法都失败了')
-    return null
-    
-  }
-  catch (error) {
-    console.error('❌ 截图过程发生错误:', error)
-    return null
-  }
+  return await captureScreenshot(targetElement, options, 'captureElement')
 }

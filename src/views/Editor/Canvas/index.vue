@@ -216,14 +216,45 @@ useAIDataProcessor()
 // AI批量生成图片功能
 const {
   processTemplateImages,
+  processSlideImages,
   hasTemplateImages,
+  hasInteractiveImages,
   getTemplateImageCount,
+  getInteractiveImageCount,
   isGeneratingImages
 } = useAIImageGeneration()
+
+// 自动生成教学步骤
+const autoGenerateTeachingSteps = async (slideIndex: number) => {
+  const slide = slides.value[slideIndex]
+  if (!slide) return
+  
+  // 如果已有备注内容，跳过生成
+  if (slide.remark && slide.remark.trim()) {
+    console.log(`幻灯片 ${slideIndex + 1} 已有备注，跳过自动生成`)
+    return
+  }
+  
+  // 等待DOM渲染完成
+  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 500))
+  
+  // 调用AI生成教学步骤
+  if (aiManagerRef.value) {
+    try {
+      await aiManagerRef.value.generateTeachingSteps()
+      console.log(`自动为幻灯片 ${slideIndex + 1} 生成教学步骤`)
+    } catch (error) {
+      console.error(`自动生成教学步骤失败:`, error)
+    }
+  }
+}
 
 // 监听幻灯片切换
 watch(() => slideIndex.value, (newIndex, oldIndex) => {
   handleSlideChange(newIndex, oldIndex)
+  // 自动生成教学步骤
+  autoGenerateTeachingSteps(newIndex)
 }, { immediate: true })
 
 // 监听 handleElementId 变化
@@ -390,16 +421,30 @@ const contextmenus = (): ContextmenuItem[] => {
     { text: 'AI 生成教学步骤', subText: '', handler: () => aiManagerRef.value?.generateTeachingSteps() }
   )
 
-  // AI批量生成图片菜单
-  const currentSlideImageCount = getTemplateImageCount()
-  if (hasTemplateImages()) {
+  // AI批量生成图片菜单（支持静态图片和互动图片）
+  const currentSlide = slides.value[slideIndex.value]
+  const staticImageCount = getTemplateImageCount()
+  const interactiveImageCount = hasInteractiveImages(currentSlide) ? getInteractiveImageCount(currentSlide) : 0
+  const totalImageCount = staticImageCount + interactiveImageCount
+  
+  if (hasTemplateImages() || hasInteractiveImages(currentSlide)) {
     baseMenus.push({ divider: true })
+    
+    // 构建菜单文本，显示图片类型分布
+    let menuText = `AI批量生成图片 (${totalImageCount}个)`
+    if (staticImageCount > 0 && interactiveImageCount > 0) {
+      menuText = `AI批量生成图片 (静态:${staticImageCount}个, 互动:${interactiveImageCount}个)`
+    } else if (interactiveImageCount > 0) {
+      menuText = `AI批量生成图片 (互动:${interactiveImageCount}个)`
+    }
+    
     baseMenus.push({
-      text: `AI批量生成图片 (${currentSlideImageCount}个)`,
+      text: menuText,
       subText: isGeneratingImages.value ? '生成中...' : '',
       handler: async () => {
         if (!isGeneratingImages.value) {
-          await processTemplateImages()
+          // 使用统一的图片处理函数，支持静态和互动图片
+          await processSlideImages(currentSlide)
         }
       },
       disable: isGeneratingImages.value

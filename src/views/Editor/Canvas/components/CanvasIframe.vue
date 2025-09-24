@@ -111,6 +111,21 @@ const handleIframeMessage = (event: MessageEvent) => {
       data: currentSlide?.aiData || null
     })
   }
+  else if (event.data.type === 'templateDataUpdated') {
+    // 处理模板数据更新消息（来自互动图片更新器）
+    console.log('🔄 收到模板数据更新消息:', event.data)
+    const { slideId, templateData } = event.data
+    const currentSlide = slides.value[slideIndex.value]
+    
+    // 如果是当前幻灯片的更新，重新发送数据到iframe
+    if (currentSlide?.id === slideId && templateData) {
+      console.log('✅ 重新发送更新后的模板数据到iframe')
+      sendMessageToIframe({
+        type: 'initData',
+        data: templateData
+      })
+    }
+  }
   else if (event.data.type === 'question-result') {
     // 处理问题答题结果
     handleQuestionResult(event.data)

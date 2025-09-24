@@ -45,6 +45,7 @@ const currentElementComponent = computed<unknown>(() => {
     [ElementTypes.LATEX]: LatexElement,
     [ElementTypes.VIDEO]: VideoElement,
     [ElementTypes.AUDIO]: AudioElement,
+    [ElementTypes.IFRAME]: null, // iframe 元素在移动端编辑器中不显示
   }
   return elementTypeMap[props.elementInfo.type] || null
 })

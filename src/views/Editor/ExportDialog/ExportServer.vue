@@ -101,6 +101,7 @@ import { nanoid } from 'nanoid'
 import { useSlidesStore } from '@/store'
 import api from '@/services'
 import message from '@/utils/message'
+import { captureForServer } from '@/utils/screenshot'
 
 import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
@@ -260,96 +261,20 @@ const waitForSlideLoad = async (): Promise<void> => {
   await waitForRender()
 }
 
-// 处理图片质量（保持原始尺寸，仅调整质量）
-const processImageQuality = (canvas: HTMLCanvasElement, quality: number = 0.9): string => {
-  const { width, height } = canvas
+// 图片质量处理 - 已移至统一截图函数中
+// const processImageQuality = (canvas: HTMLCanvasElement, quality: number): string => {
+//   // 此函数已整合到统一截图函数中
+// }
 
-  console.log(`🔧 图片质量处理: ${width}x${height}, 质量: ${Math.round(quality * 100)}%`)
+// 动态加载html2canvas库 - 已移至统一截图函数中
+// const loadHtml2Canvas = (): Promise<void> => {
+//   // 此函数已整合到统一截图函数中
+// }
 
-  // 直接使用原始canvas，不进行尺寸压缩
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    console.warn('⚠️ 无法获取canvas上下文，使用原图')
-    return canvas.toDataURL('image/jpeg', quality)
-  }
-
-  // 转换为JPEG格式，使用用户设置的质量参数
-  const processedBase64 = canvas.toDataURL('image/jpeg', quality)
-
-  console.log(`📦 质量处理完成: ${Math.round(processedBase64.length / 1024)}KB`)
-
-  return processedBase64
-}
-
-// 动态加载html2canvas库
-const loadHtml2Canvas = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    if (window.html2canvas) {
-      resolve()
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'
-    script.onload = () => {
-      console.log('✅ html2canvas库加载成功')
-      resolve()
-    }
-    script.onerror = () => {
-      console.error('❌ html2canvas库加载失败')
-      reject(new Error('Failed to load html2canvas'))
-    }
-    document.head.appendChild(script)
-  })
-}
-
-// 使用SVG + foreignObject进行截图
-const captureWithSVG = async (element: HTMLElement): Promise<string | null> => {
-  try {
-    const { width, height } = element.getBoundingClientRect()
-
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-        <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml">
-            ${element.outerHTML}
-          </div>
-        </foreignObject>
-      </svg>
-    `
-
-    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
-    const svgUrl = URL.createObjectURL(svgBlob)
-
-    return await new Promise((resolve) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.drawImage(img, 0, 0)
-          resolve(canvas.toDataURL('image/png', 0.8))
-        }
-        else {
-          resolve(null)
-        }
-        URL.revokeObjectURL(svgUrl)
-      }
-      img.onerror = () => {
-        URL.revokeObjectURL(svgUrl)
-        resolve(null)
-      }
-      img.src = svgUrl
-    })
-
-  }
-  catch (error) {
-    console.error('SVG截图失败:', error)
-    return Promise.resolve(null)
-  }
-}
+// 使用SVG + foreignObject进行截图 - 已移至统一截图函数中
+// const captureWithSVG = (element: HTMLElement): Promise<string | null> => {
+//   // 此函数已整合到统一截图函数中
+// }
 
 // 声明全局类型
 declare global {
@@ -358,161 +283,9 @@ declare global {
   }
 }
 
-// 截取当前页面图片
+// 截取当前页面图片 - 使用统一的截图函数
 const captureSlideImage = async (): Promise<string | null> => {
-  try {
-    console.log('🔍 开始DOM结构调试...')
-
-    // 扩展搜索范围，查找所有可能的元素
-    const selectors = [
-      '.viewport-wrapper',
-      '.viewport',
-      '.slide-content',
-      '.editor-content',
-      '[class*="canvas"]',
-      '[class*="viewport"]',
-      '[class*="slide"]'
-    ]
-
-    let targetElement: HTMLElement | null = null
-
-    for (const selector of selectors) {
-      const element = document.querySelector(selector) as HTMLElement
-      if (element && element.offsetWidth > 0 && element.offsetHeight > 0) {
-        targetElement = element
-        console.log(`✅ 找到可用元素: ${selector}`, {
-          width: element.offsetWidth,
-          height: element.offsetHeight,
-          className: element.className
-        })
-        break
-      }
-    }
-
-    if (!targetElement) {
-      console.error('❌ 未找到任何可用的页面元素')
-      // 尝试使用整个body作为最后的备选方案
-      targetElement = document.body
-      console.log('🔄 使用body元素作为备选方案')
-    }
-
-    let capturedCanvas: HTMLCanvasElement | null = null
-
-    // 方法1: 尝试使用html2canvas（如果可用）
-    if (window.html2canvas) {
-      console.log('🎨 使用html2canvas进行截图...')
-      try {
-        capturedCanvas = await window.html2canvas(targetElement, {
-          backgroundColor: '#ffffff',
-          scale: 2, // 提高缩放比例以获得更清晰的图片
-          useCORS: true,
-          allowTaint: true,
-          width: targetElement.offsetWidth,
-          height: targetElement.offsetHeight,
-          logging: false
-        })
-
-        console.log('✅ html2canvas截图成功')
-      }
-      catch (html2canvasError) {
-        console.warn('⚠️ html2canvas截图失败:', html2canvasError)
-      }
-    }
-
-    // 方法2: 查找现有的canvas元素
-    if (!capturedCanvas) {
-      const canvasElements = document.querySelectorAll('canvas')
-      console.log('🔍 找到canvas元素数量:', canvasElements.length)
-
-      for (let i = 0; i < canvasElements.length; i++) {
-        const canvas = canvasElements[i] as HTMLCanvasElement
-        if (canvas.width > 0 && canvas.height > 0) {
-          try {
-            // 测试是否可以访问canvas数据
-            canvas.toDataURL('image/png', 0.1)
-            capturedCanvas = canvas
-            console.log(`✅ 使用第${i + 1}个canvas元素`)
-            break
-          }
-          catch (canvasError) {
-            console.warn(`⚠️ 第${i + 1}个canvas元素不可访问:`, canvasError)
-          }
-        }
-      }
-    }
-
-    // 方法3: 动态加载html2canvas并重试
-    if (!capturedCanvas && !window.html2canvas) {
-      console.log('📦 尝试动态加载html2canvas...')
-      try {
-        await loadHtml2Canvas()
-        if (window.html2canvas) {
-          capturedCanvas = await window.html2canvas(targetElement, {
-            backgroundColor: '#ffffff',
-            scale: 2,
-            useCORS: true,
-            allowTaint: true
-          })
-          console.log('✅ 动态加载html2canvas截图成功')
-        }
-      }
-      catch (loadError) {
-        console.warn('⚠️ 动态加载html2canvas失败:', loadError)
-      }
-    }
-
-    // 方法4: 使用SVG + foreignObject (实验性)
-    if (!capturedCanvas) {
-      console.log('🧪 尝试使用SVG方法截图...')
-      try {
-        const svgImage = await captureWithSVG(targetElement)
-        if (svgImage) {
-          // 将SVG图像转换为canvas
-          const img = new Image()
-          await new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-            img.src = svgImage
-          })
-
-          const canvas = document.createElement('canvas')
-          canvas.width = img.width
-          canvas.height = img.height
-          const ctx = canvas.getContext('2d')
-          if (ctx) {
-            ctx.drawImage(img, 0, 0)
-            capturedCanvas = canvas
-            console.log('✅ SVG方法截图成功')
-          }
-        }
-      }
-      catch (svgError) {
-        console.warn('⚠️ SVG方法截图失败:', svgError)
-      }
-    }
-
-    // 如果获取到了canvas，进行质量处理
-    if (capturedCanvas) {
-      const originalSize = Math.round(capturedCanvas.toDataURL('image/png').length / 1024)
-      console.log(`📏 原始图片大小: ${originalSize}KB`)
-
-      // 使用用户设置的图片质量进行处理，保持原始尺寸不压缩
-      const processedBase64 = processImageQuality(capturedCanvas, imageQuality.value)
-      const processedSize = Math.round(processedBase64.length / 1024)
-
-      console.log(`✅ 图片质量处理完成: ${originalSize}KB -> ${processedSize}KB (质量: ${Math.round(imageQuality.value * 100)}%)`)
-
-      return processedBase64
-    }
-
-    console.error('❌ 所有截图方法都失败了')
-    return null
-
-  }
-  catch (error) {
-    console.error('❌ 截图过程发生错误:', error)
-    return null
-  }
+  return await captureForServer(undefined, imageQuality.value, 'ExportServer')
 }
 
 // 单页上传到服务器

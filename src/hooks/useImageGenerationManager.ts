@@ -182,48 +182,45 @@ export class ImageGenerationManager {
         const currentPath = path ? `${path}.${key}` : key
         
         if (key === 'imgAlt' && typeof value === 'string' && value.trim()) {
-          // 检查对应的 imgUrl 是否存在
+          // 忽略 imgUrl 检查，只要有 imgAlt 就创建任务
           const imgUrlPath = currentPath.replace('imgAlt', 'imgUrl')
-          const imgUrlExists = this.getNestedValue(slide.templateData, imgUrlPath)
           
-          if (!imgUrlExists) {
-            // 创建虚拟元素
-            const virtualElement: PPTImageElement = {
-              id: `interactive-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              type: 'image',
-              width: dimensions.width,
-              height: dimensions.height,
-              left: 0,
-              top: 0,
-              rotate: 0,
-              fixedRatio: true,
-              src: '',
-              alt: value.trim(),
-              // 特殊标记
-              isInteractiveTemplate: true,
-              templateDataPath: imgUrlPath
-            } as any
-            
-            const task: QueueItem = {
-              id: `interactive-${slide.id}-${virtualElement.id}-${Date.now()}`,
-              slideId: slide.id,
-              elementId: virtualElement.id,
-              prompt: value.trim(),
-              element: virtualElement,
-              priority: 0, // 互动图片中优先级
-              type: 'interactive',
-              templateDataPath: imgUrlPath,
-              retryCount: 0,
-              createdAt: Date.now()
-            }
-            
-            tasks.push(task)
-            console.log('🖼️ 收集互动图片任务:', {
-              path: currentPath,
-              prompt: value,
-              imgUrlPath
-            })
+          // 创建虚拟元素
+          const virtualElement: PPTImageElement = {
+            id: `interactive-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: 'image',
+            width: dimensions.width,
+            height: dimensions.height,
+            left: 0,
+            top: 0,
+            rotate: 0,
+            fixedRatio: true,
+            src: '',
+            alt: value.trim(),
+            // 特殊标记
+            isInteractiveTemplate: true,
+            templateDataPath: imgUrlPath
+          } as any
+
+          const task: QueueItem = {
+            id: `interactive-${slide.id}-${virtualElement.id}-${Date.now()}`,
+            slideId: slide.id,
+            elementId: virtualElement.id,
+            prompt: value.trim(),
+            element: virtualElement,
+            priority: 0, // 互动图片中优先级
+            type: 'interactive',
+            templateDataPath: imgUrlPath,
+            retryCount: 0,
+            createdAt: Date.now()
           }
+
+          tasks.push(task)
+          console.log('🖼️ 收集互动图片任务:', {
+            path: currentPath,
+            prompt: value,
+            imgUrlPath
+          })
         }
         else if (typeof value === 'object' && value !== null) {
           extractImages(value, currentPath)

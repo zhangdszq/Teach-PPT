@@ -280,16 +280,12 @@ export default () => {
         
         if (key === 'imgAlt' && typeof value === 'string' && value.trim()) {
           console.log(`✅ 找到 imgAlt 字段 ${currentPath}:`, value)
-          // 检查对应的 imgUrl 是否已经存在
-          if (!obj.imgUrl || typeof obj.imgUrl !== 'string' || !obj.imgUrl.trim()) {
-            console.log(`🎯 发现需要生成的互动图片 ${currentPath}:`, {
-              imgAlt: value,
-              imgUrl: obj.imgUrl,
-              hasImgUrl: !!obj.imgUrl
-            })
-            return true
-          }
-          console.log(`⏭️ imgUrl 已存在 ${currentPath}:`, obj.imgUrl)
+          // 忽略 imgUrl 检查，只要有 imgAlt 就认为有互动图片
+          console.log(`🎯 发现互动图片 ${currentPath}:`, {
+            imgAlt: value,
+            imgUrl: obj.imgUrl
+          })
+          return true
         }
         else if (typeof value === 'object' && value !== null) {
           if (checkImages(value, currentPath)) {
@@ -318,9 +314,8 @@ export default () => {
       Object.keys(obj).forEach(key => {
         const value = obj[key]
         if (key === 'imgAlt' && typeof value === 'string' && value.trim()) {
-          if (!obj.imgUrl || typeof obj.imgUrl !== 'string' || !obj.imgUrl.trim()) {
-            count++
-          }
+          // 忽略 imgUrl 检查，只要有 imgAlt 就计数
+          count++
         }
         else if (typeof value === 'object' && value !== null) {
           countImages(value)

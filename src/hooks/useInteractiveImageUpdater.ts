@@ -104,7 +104,32 @@ export default function useInteractiveImageUpdater() {
         newValue: imageUrl
       })
       
-      // iframe刷新功能已移除，切换slide时会通过iframe Ready消息进行数据传输
+      // 刷新iframe功能：通过发送消息通知iframe更新数据
+      const currentSlide = slidesStore.slides.find(s => s.id === slideId)
+      if (currentSlide && currentSlide.templateData) {
+        // 创建可序列化的数据对象，避免DataCloneError
+        const serializableData = {
+          type: 'templateDataUpdated',
+          slideId,
+          templateData: JSON.parse(JSON.stringify(currentSlide.templateData)) // 深拷贝确保可序列化
+        }
+        
+        // 发送更新消息到iframe
+        if (window.parent && window.parent !== window) {
+          // 如果在iframe中，向父窗口发送消息
+          window.parent.postMessage(serializableData, '*')
+        }
+        else {
+          // 如果在主窗口中，查找iframe并发送消息
+          const iframes = document.querySelectorAll('iframe')
+          iframes.forEach(iframe => {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.postMessage(serializableData, '*')
+            }
+          })
+        }
+      }
+      
       updateRecord.refreshed = true
       console.log('✅ 互动图片更新完成:', slideId)
       
