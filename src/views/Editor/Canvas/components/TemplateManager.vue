@@ -403,10 +403,19 @@ const handleManualTemplateSelect = async (template: any) => {
           
           const processedElements = processElementsWithFixedViewport(newSlideData.elements, slideSize)
           
+          // 更新 aiData 的 metadata 中的 templateId
+          const updatedAIData = {
+            ...slide.aiData,
+            metadata: {
+              ...slide.aiData.metadata,
+              templateId: template.id
+            }
+          }
+          
           slidesStore.updateSlide({
             elements: processedElements,
             background: newSlideData.background || slide.background,
-            aiData: slide.aiData,
+            aiData: updatedAIData,
             templateData: newSlideData.templateData,
             isInteractive: newSlideData.isInteractive,
             imageConfig: newSlideData.imageConfig

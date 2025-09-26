@@ -288,11 +288,20 @@ const processSlide = async (aiData: any, slidesStore: any, onProgress?: (progres
           const slideId = nanoid(10)
           const adaptedElements = processElementsWithFixedViewport(slideData.elements || [], templateSize)
           
+          // 更新 aiData 的 metadata 中的 templateId
+          const updatedAIData = {
+            ...aiData,
+            metadata: {
+              ...aiData.metadata,
+              templateId: matchedTemplate.templateId
+            }
+          }
+          
           const finalSlide: Slide = {
             id: slideId,
             elements: adaptedElements,
             background: slideData.background || { type: 'solid', color: '#ffffff' },
-            aiData: aiData
+            aiData: updatedAIData
           }
           
           processedSlides.push(finalSlide)

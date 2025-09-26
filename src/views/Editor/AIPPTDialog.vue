@@ -462,12 +462,21 @@ const createPPT = async () => {
                       // 应用固定视口适配处理元素
                       const adaptedElements = processElementsWithFixedViewport(slideData.elements || [], templateSize)
                       
+                      // 更新 aiData 的 metadata 中的 templateId
+                      const updatedAIData = {
+                        ...aiData,
+                        metadata: {
+                          ...aiData.metadata,
+                          templateId: matchedTemplate.templateId
+                        }
+                      }
+                      
                       // 构建完整的幻灯片对象
                       const finalSlide: Slide = {
                         id: slideId,
                         elements: adaptedElements,
                         background: slideData.background || { type: 'solid', color: '#ffffff' },
-                        aiData: aiData // 保存原始AI数据
+                        aiData: updatedAIData // 保存更新后的AI数据
                       }
                       
                       console.log('📝 创建适配后的幻灯片:', finalSlide.id, '元素数量:', finalSlide.elements.length)

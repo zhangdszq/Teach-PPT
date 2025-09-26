@@ -39,3 +39,33 @@ export interface AIPPTEnd {
 }
 
 export type AIPPTSlide = AIPPTCover | AIPPTContents | AIPPTTransition | AIPPTContent | AIPPTEnd
+
+// AI数据的元数据结构
+export interface AIDataMetadata {
+  words: string[]
+  sentences: string[]
+  questions: string[]
+  imageDescriptions: string[]
+  wordCount: number
+  sentenceCount: number
+  questionCount: number
+  imageCount: number
+  lastModified?: string
+  syncVersion?: number
+  templateId?: string // 添加模板ID字段
+}
+
+// AI数据的完整结构
+export interface AIData {
+  title?: string
+  subtitle?: string
+  content?: string
+  items?: any[]
+  words?: string[]
+  sentences?: string[]
+  imageDescriptions?: string[]
+  components?: any[]
+  metadata?: AIDataMetadata
+  isInteractive?: boolean
+  [key: string]: any // 允许其他动态属性
+}
